@@ -1,11 +1,13 @@
 # Builds the Mac and Windows installers and attaches them to a draft GitHub Release.
-# Run it from the repo's Actions tab ("Build Cloakroom" → "Run workflow"), or push a tag like v0.1.0.
+# Runs on every push to main, or from the repo's Actions tab ("Build Cloakroom" → "Run workflow").
+# The version number in src-tauri/tauri.conf.json decides which draft release the installers land in.
 name: Build Cloakroom
 
 on:
   workflow_dispatch:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths-ignore: ['README.md']
 
 permissions:
   contents: write
