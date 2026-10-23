@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Fallback lock for when this page is opened in a browser. The desktop app applies its own, equally strict policy. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Cloakroom</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="drag" data-tauri-drag-region></div>
+    <div class="brand" data-tauri-drag-region>
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 14a6 6 0 1 1 6 6c-3 0-6 2-6 5v3" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M32 28 7 44a3 3 0 0 0 2 6h46a3 3 0 0 0 2-6Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>
+      <span>Cloakroom</span>
+    </div>
+    <nav>
+      <button data-tab="mask" class="on"><span class="ico">↓</span><span><b>Check in</b><small>Hide private details</small></span></button>
+      <button data-tab="restore"><span class="ico">↑</span><span><b>Pick up</b><small>Put them back</small></span></button>
+      <button data-tab="lists"><span class="ico">≡</span><span><b>Watch lists</b><small>Names to always catch</small></span></button>
+      <button data-tab="key"><span class="ico">⚿</span><span><b>Tickets</b><small>Your key and settings</small></span></button>
+    </nav>
+    <div class="status">
+      <div class="pill"><span class="dot"></span>Offline</div>
+      <div class="pill" id="encPill"><span class="dot"></span><span id="encLabel">Encrypted on this computer</span></div>
+      <div class="small" id="ticketCount"></div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topdrag" data-tauri-drag-region></div>
+
+    <!-- CHECK IN -->
+    <section id="mask" class="on">
+      <header><h1>Check in</h1><p>Paste text or a table. Cloakroom swaps private details for tickets like [PERSON_3], so Claude never sees the real thing.</p></header>
+      <div class="grid">
+        <div class="card">
+          <div class="cardhead"><h2>Your text or table</h2><span class="small" id="modeInfo"></span></div>
+          <textarea id="input" class="drop" placeholder="Paste here, or drop a .csv / .txt file…"></textarea>
+          <div class="row">
+            <label class="btn">Open file…<input id="file" type="file" accept=".csv,.tsv,.txt,.md" hidden></label>
+            <button class="btn ghost" id="clearIn">Clear</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><h2>What I found</h2></div>
+          <p class="hint">Ticked items get a ticket. Untick anything that's fine to share.</p>
+          <div id="columns"></div>
+          <div class="find" id="findings"><div class="empty">Paste something to start.</div></div>
+          <div class="row">
+            <input type="text" id="addVal" placeholder="Something I missed…" class="grow">
+            <select id="addType"></select>
+            <button class="btn" id="addBtn">Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="card result">
+        <div class="cardhead">
+          <h2>Safe to send to Claude</h2>
+          <label class="small check"><input type="checkbox" id="addNote" checked> Add a note asking Claude to keep the tickets</label>
+        </div>
+        <div class="row" style="margin-top:0"><button class="btn primary" id="maskBtn">Check in</button><span class="small" id="maskInfo"></span></div>
+        <textarea id="output" readonly placeholder="The masked version appears here."></textarea>
+        <div class="row"><button class="btn" id="copyOut">Copy</button></div>
+        <div id="maskWarn"></div>
+      </div>
+    </section>
+
+    <!-- PICK UP -->
+    <section id="restore">
+      <header><h1>Pick up</h1><p>Paste Claude's reply or open the file it gave you. Every ticket is swapped back for the real detail.</p></header>
+      <div class="grid">
+        <div class="card">
+          <div class="cardhead"><h2>Claude's reply</h2><span class="small" id="rFileInfo"></span></div>
+          <textarea id="rin" class="drop" placeholder="Paste Claude's reply, or drop a file…"></textarea>
+          <div class="row">
+            <button class="btn primary" id="restoreBtn">Pick up</button>
+            <label class="btn">Open file…<input id="rfile" type="file" accept=".txt,.csv,.tsv,.md" hidden></label>
+            <button class="btn ghost" id="clearR">Clear</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><h2>With real details</h2><span class="small" id="rInfo"></span></div>
+          <textarea id="rout" readonly></textarea>
+          <div class="row"><button class="btn" id="copyR">Copy</button><button class="btn" id="saveR" disabled>Save as file…</button></div>
+          <div id="rWarn"></div>
+        </div>
+      </div>
+      <div id="donePanel" class="card done" style="display:none">
+        <div>
+          <h2>All done?</h2>
+          <p class="hint">Once you've copied or saved the result, erase this round: every ticket, every text box, and your clipboard.</p>
+          <label class="small check"><input type="checkbox" id="doneLists"> Also erase my watch lists</label>
+        </div>
+        <button class="btn danger" id="doneBtn">Erase everything now</button>
+      </div>
+    </section>
+
+    <!-- WATCH LISTS -->
+    <section id="lists">
+      <header><h1>Watch lists</h1><p>Names that should always get a ticket, one per line. Paste a column straight from Salesforce or Coda. For people, a first or last name on its own is caught too.</p></header>
+      <div class="grid">
+        <div class="card"><div class="cardhead"><h2>People</h2></div><textarea id="people" placeholder="Jane Smith"></textarea></div>
+        <div class="card"><div class="cardhead"><h2>Organizations</h2></div><textarea id="orgs" placeholder="Example Foundation"></textarea></div>
+      </div>
+      <p class="small" id="listInfo"></p>
+    </section>
+
+    <!-- TICKETS -->
+    <section id="key">
+      <header><h1>Tickets</h1><p>Every ticket and the real detail behind it. They live only on this computer, encrypted, and erase themselves when unused.</p></header>
+      <div class="grid">
+        <div class="card">
+          <div class="cardhead"><h2>Auto-erase</h2></div>
+          <p class="hint">Tickets not used for this long are erased. Replies older than this can't be picked up. Watch lists stay until you erase them.</p>
+          <select id="retention"><option value="1">After 1 day</option><option value="3">After 3 days</option><option value="7">After 7 days</option><option value="14">After 14 days</option><option value="30">After 30 days</option><option value="0">Never</option></select>
+          <div class="cardhead" style="margin-top:22px"><h2>Backup and erase</h2></div>
+          <p class="hint">An exported key is <b>not encrypted</b>. Keep it somewhere as private as the original data.</p>
+          <div class="row" style="margin-top:0">
+            <button class="btn" id="exportBtn">Export key…</button>
+            <label class="btn">Import key…<input id="importFile" type="file" accept=".json" hidden></label>
+            <button class="btn danger" id="wipeBtn">Erase all</button>
+          </div>
+          <div id="storeWarn"></div>
+        </div>
+        <div class="card">
+          <div class="cardhead"><h2>Your tickets</h2><input type="search" id="vq" placeholder="Search…"></div>
+          <div class="vaultwrap"><table class="vault" id="vault"></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="modal" hidden>
+  <div class="box" role="dialog" aria-modal="true">
+    <p id="modalMsg"></p>
+    <div class="row end"><button class="btn ghost" id="modalNo">Cancel</button><button class="btn danger" id="modalYes">OK</button></div>
+  </div>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

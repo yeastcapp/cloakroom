@@ -1,0 +1,29 @@
+[package]
+name = "cloakroom"
+version = "0.1.0"
+description = "Hide private details before they reach an AI, and put them back afterwards. Runs entirely offline."
+edition = "2021"
+
+[lib]
+name = "cloakroom_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Note: no HTTP, updater or shell plugins. The app has no way to reach the network.
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+aes-gcm = "0.10"
+rand = "0.8"
+base64 = "0.22"
+zeroize = "1"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
