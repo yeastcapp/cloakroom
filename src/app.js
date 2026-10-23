@@ -37,7 +37,7 @@ async function copy(id){
 
 /* ---------- navigation ---------- */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('nav button').forEach(x=>{x.classList.toggle('on',x===b);if(x===b)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current');});
   document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.tab));
   if(b.dataset.tab==='key')renderVault();
 });
@@ -49,28 +49,28 @@ function rescan(){
   if(text!==lastInput&&!parseTable(text))columns=null;
   if(parseTable(text)&&(!columns||text.split('\n')[0]!==lastInput.split('\n')[0]))columns=null;
   lastInput=text;
-  if(!text.trim()){scan=null;$('findings').innerHTML='<div class="empty">Paste something to start.</div>';$('columns').innerHTML='';$('modeInfo').textContent='';return;}
+  if(!text.trim()){scan=null;$('findings').innerHTML='<div class="empty">Nothing yet.</div>';$('columns').innerHTML='';$('modeInfo').textContent='';return;}
   scan=collect(text,{manual,columns});
   columns=scan.columns;
-  $('modeInfo').textContent=scan.table?`Table · ${scan.table.filter(r=>r.some(c=>c.trim())).length-1} rows × ${scan.table[0].length} columns`:'Text';
+  $('modeInfo').textContent=scan.table?`Table, ${scan.table.filter(r=>r.some(c=>c.trim())).length-1} rows by ${scan.table[0].length} columns`:'Text';
   renderColumns();renderFindings();
 }
 function renderColumns(){
   if(!scan||!scan.table){$('columns').innerHTML='';return;}
-  $('columns').innerHTML='<div class="find" style="margin-bottom:10px"><div class="grp">Whole columns</div>'+scan.columns.map(c=>
+  $('columns').innerHTML='<div class="find"><div class="grp">Columns</div>'+scan.columns.map(c=>
     `<label><input type="checkbox" data-col="${c.i}" ${c.on?'checked':''} ${c.type?'':'disabled'}>
-     <span><b>${h(c.header)}</b> <span class="small">${c.type?TYPE_LABEL[c.type]:'not flagged, checked cell by cell'}</span></span>
+     <span><b>${h(c.header)}</b> <span class="meta">${c.type?TYPE_LABEL[c.type]:'checked cell by cell'}</span></span>
      <span class="m">${c.distinct} values</span></label>`).join('')+'</div>';
   $('columns').querySelectorAll('input').forEach(i=>i.onchange=()=>{columns[+i.dataset.col].on=i.checked;rescan();});
 }
 function isChecked(f){return userChecks.has(f.key)?userChecks.get(f.key):f.checked;}
 function renderFindings(){
   const sure=scan.findings.filter(f=>!f.maybe),maybe=scan.findings.filter(f=>f.maybe);
-  const row=f=>`<label><input type="checkbox" data-k="${h(f.key)}" ${isChecked(f)?'checked':''}><span class="v">${h(f.value)}</span><span class="m">${h(f.label)}${f.count>1?' · ×'+f.count:''}</span></label>`;
+  const row=f=>`<label><input type="checkbox" data-k="${h(f.key)}" ${isChecked(f)?'checked':''}><span class="v">${h(f.value)}</span><span class="m">${h(f.label)}${f.count>1?', ×'+f.count:''}</span></label>`;
   let html='';
   TYPES.forEach(t=>{const g=sure.filter(f=>f.type===t);if(g.length)html+=`<div class="grp">${TYPE_LABEL[t]} (${g.length})</div>`+g.map(row).join('');});
-  if(maybe.length)html+=`<details ${scan.table?'':'open'}><summary>Possible names (${maybe.length}). Common first names are ticked, the rest aren't. Tick any that are people.</summary>${maybe.map(row).join('')}</details>`;
-  if(!html)html='<div class="empty">Nothing detected. Add anything private below before checking in.</div>';
+  if(maybe.length)html+=`<details ${scan.table?'':'open'}><summary>Possible names (${maybe.length})</summary>${maybe.map(row).join('')}</details>`;
+  if(!html)html='<div class="empty">Nothing found.</div>';
   $('findings').innerHTML=html;
   $('findings').querySelectorAll('input').forEach(i=>i.onchange=()=>userChecks.set(i.dataset.k,i.checked));
 }
@@ -94,9 +94,9 @@ $('maskBtn').onclick=()=>{
   const r=mask($('input').value,scan,keys);
   $('output').value=($('addNote').checked?NOTE:'')+r.out;
   const total=Object.values(r.stats).reduce((a,b)=>a+b,0);
-  $('maskInfo').textContent=total?`${total} tickets: `+Object.entries(r.stats).map(([t,n])=>`${n} ${TYPE_LABEL[t].toLowerCase()}`).join(', '):'Nothing replaced.';
-  $('maskWarn').innerHTML=(r.skipped?`<div class="note">You unticked ${r.skipped} detected item${r.skipped>1?'s':''}, so ${r.skipped>1?'they are':'it is'} still in the text above.</div>`:'')
-   +'<div class="note">Read it once before sending. Context can still identify someone (for example "the ED of a land trust in Moncton"), and names Cloakroom has never seen can slip through. Add regulars to your watch lists.</div>';
+  $('maskInfo').textContent=total?`${total} ticket${total===1?'':'s'}`:'Nothing replaced';
+  $('maskWarn').innerHTML=(r.skipped?`<div class="note">${r.skipped} unticked item${r.skipped>1?'s':''} still in your text.</div>`:'')
+   +'<div class="note">Read it before sending. Context can still identify someone, and names Cloakroom has never seen can slip through.</div>';
   refreshStatus();
 };
 $('copyOut').onclick=()=>copy('output');
@@ -112,7 +112,7 @@ function doRestore(){
   } else r=restore(src);
   $('rout').value=r.text;$('saveR').disabled=!r.text;$('donePanel').style.display=r.text?'flex':'none';
   $('rInfo').textContent=`${r.n} ticket${r.n===1?'':'s'} picked up`;
-  $('rWarn').innerHTML=r.unknown.length?`<div class="note">No ticket on file, left as-is: ${r.unknown.map(h).join(', ')}. They may have expired or been erased, Claude may have invented them, or they came from a key you haven't imported.</div>`:(r.n?'<div class="ok">Every ticket matched.</div>':'');
+  $('rWarn').innerHTML=r.unknown.length?`<div class="note">No ticket on file, left as is: ${r.unknown.map(h).join(', ')}</div>`:(r.n?'<div class="ok">Every ticket matched.</div>':'');
 }
 $('restoreBtn').onclick=doRestore;
 $('rin').addEventListener('input',()=>{if(rFile){rFile=null;$('rFileInfo').textContent='';}});
@@ -127,7 +127,7 @@ $('saveR').onclick=()=>{
 $('clearR').onclick=()=>{rFile=null;$('rFileInfo').textContent='';$('saveR').disabled=true;$('rin').value='';$('rout').value='';$('rInfo').textContent='';$('rWarn').innerHTML='';$('donePanel').style.display='none';};
 
 /* ---------- watch lists ---------- */
-function listCount(){const c=s=>s.split('\n').filter(l=>l.trim()).length;$('listInfo').textContent=`${c(state.people)} people and ${c(state.orgs)} organizations. Saved automatically, encrypted.`;}
+function listCount(){const c=s=>s.split('\n').filter(l=>l.trim()).length;$('listInfo').textContent=`${c(state.people)} people, ${c(state.orgs)} organizations`;}
 ['people','orgs'].forEach(id=>$(id).addEventListener('input',()=>{state[id]=$(id).value;saveState();listCount();clearTimeout(timer);timer=setTimeout(rescan,400);}));
 
 /* ---------- tickets (key) ---------- */
@@ -136,12 +136,12 @@ function refreshStatus(){
   $('ticketCount').textContent=n?`${n} ticket${n===1?'':'s'} on file`:'No tickets on file';
   $('encPill').classList.toggle('bad',!storageOK);
   $('encLabel').textContent=storageOK?(TAURI?'Encrypted on this computer':'Saved in this browser'):'Storage problem';
-  $('storeWarn').innerHTML=storageOK?'':`<div class="note">Cloakroom couldn't read or save its tickets (${h(storageError)}). If this keeps happening, use Erase all to start fresh.</div>`;
+  $('storeWarn').innerHTML=storageOK?'':`<div class="note">Cloakroom couldn't read or save its tickets (${h(storageError)}). Erase all starts fresh.</div>`;
 }
 function renderVault(){
   const q=norm($('vq').value||'');
   const rows=Object.entries(state.tokens).filter(([t,v])=>!q||t.toLowerCase().includes(q)||norm(v.value).includes(q));
-  $('vault').innerHTML=rows.length?'<tr><th>Ticket</th><th>Real detail</th><th>Last used</th><th></th></tr>'+rows.map(([t,v])=>`<tr><td class="t">[${h(t)}]</td><td>${h(v.value)}</td><td class="small">${v.ts?new Date(v.ts).toLocaleDateString():''}</td><td><button data-t="${h(t)}" title="Remove">✕</button></td></tr>`).join(''):'<tr><td class="small" style="border:0">No tickets yet.</td></tr>';
+  $('vault').innerHTML=rows.length?'<tr><th>Ticket</th><th>Real detail</th><th>Last used</th><th><span class="visually-hidden">Remove</span></th></tr>'+rows.map(([t,v])=>`<tr><td class="t"><span class="chip">[${h(t)}]</span></td><td>${h(v.value)}</td><td class="meta">${v.ts?new Date(v.ts).toLocaleDateString():''}</td><td><button type="button" class="x" data-t="${h(t)}" aria-label="Remove ${h(t)}" title="Remove">✕</button></td></tr>`).join(''):'<tr><td class="meta">No tickets yet.</td></tr>';
   $('vault').querySelectorAll('button').forEach(b=>b.onclick=async()=>{const t=b.dataset.t;if(!await ask(`Remove [${t}]? Replies that use it can no longer be picked up.`,'Remove'))return;delete state.index[norm(state.tokens[t].value)];delete state.tokens[t];saveState();renderVault();rescan();refreshStatus();});
   refreshStatus();
 }
@@ -170,7 +170,7 @@ async function eraseAll(lists){
   try{await navigator.clipboard.writeText('');}catch(e){}
   listCount();renderVault();rescan();
 }
-$('doneBtn').onclick=async()=>{await eraseAll($('doneLists').checked);$('rWarn').innerHTML='<div class="ok">Erased. Nothing from this round is left in Cloakroom or on your clipboard.</div>';toast('Everything erased');};
+$('doneBtn').onclick=async()=>{await eraseAll($('doneLists').checked);$('rWarn').innerHTML='<div class="ok">Erased, clipboard included.</div>';toast('Everything erased');};
 $('retention').onchange=()=>{state.retentionDays=+$('retention').value;purgeExpired();renderVault();};
 $('wipeBtn').onclick=async()=>{if(!await ask('Erase every ticket and both watch lists? Replies you haven\'t picked up yet can no longer be restored.','Erase all'))return;await eraseAll(true);toast('Everything erased');};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').hidden)$('modalNo').click();});
