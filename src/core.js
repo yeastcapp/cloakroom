@@ -72,6 +72,13 @@ const FIRSTNAMES=new Set(('James John Robert Michael William David Richard Josep
 const ORGWORDS=new Set(('Foundation Society Association Inc Ltd Corp Corporation Centre Center Council Fund Trust Charity Church Hospital Hospice Institute University College School Club Network Alliance Coalition Federation Agency Services Mission Shelter League Group Partners Canada Canadian Ontario Manitoba Alberta Columbia Quebec Scotia Brunswick Saskatchewan').split(' '));
 const NOUNS=new Set(('Policy Policies Plan Strategy Program Programs Standard Standards Review Reports Meeting Agenda Minutes Budget Investment Investments Governance Framework Guidelines Handbook Tool Toolkit Committee Panel Decision Accreditation Session Workshop Webinar Event Project Update Summary Draft Section Appendix Table Chapter Page Form').split(' '));
 const NAMEWORD="[A-Z][a-zà-ÿ'’-]+";
+
+/* More first names, from many backgrounds. Only used as a hint: a lone capitalized word in this list is ticked. */
+('Luca Liam Mia Ava Zoe Zoey Sofia Sophia Isabella Camila Valentina Mateo Diego Carlos Miguel Santiago Lucas Marco Giulia Giovanni Matteo Francesca Andre Andrei Dmitri Dmitry Olga Ivan Anya Natalia Nikolai Sven Lars Ingrid Astrid Priya Aisha Fatima Mohammad Muhammad Yusuf Hassan Hussein Ibrahim Khalid Tariq Jamal Malik Layla Leila Noor Hana Sana Zainab Imran Rahul Anil Sunita Deepa Meera Anjali Vikram Sanjay Harpreet Gurpreet Jasdeep Simran Manpreet Rajesh Suresh Ravi Kavita Neha Pooja Ananya Aarav Ming Mei Ling Xin Yan Hui Jin Hyun Soo Min Jiho Seo Yuki Hiro Kenji Haruto Akira Sakura Aiko Kofi Kwame Amara Chidi Ngozi Thandi Sipho Oluwaseun Chinedu Adebayo Nia Imani Aroha Tane Wiremu Kiri Anika Elena Elsa Greta Katya Sasha Mikhail Pavel Tomas Jakub Piotr Marek Kasia Eva Lena Mila Nora Lea Leo Theo Max Finn Oscar Oliver Jacob Elijah Mason Ethan Lucy Chloe Ella Grace Hazel Ivy Ruby Stella Violet Willow Aurora Penelope Layla Riley Avery Quinn Harper Blake Cameron Morgan Taylor Casey Jamie Drew Robin Dana Jordan Alexis Sasha Kim Lee Jay Sean Shawn Shane Tristan Evan Owen Caleb Isaac Eli Hugo Felix Jules Remy Antoine Mathieu Etienne Amelie Camille Chantal Genevieve Josee Mireille Sylvie Nathalie Isabelle Marie Celine Lucie Manon').split(' ').forEach(n=>FIRSTNAMES.add(n));
+const PLACES=new Set(('Toronto Ottawa Montreal Montréal Vancouver Calgary Edmonton Winnipeg Halifax Moncton Regina Saskatoon Hamilton Kitchener Waterloo Mississauga Brampton Surrey Burnaby Victoria Fredericton Charlottetown Yukon Nunavut Labrador Newfoundland Nova Canada Canadian America American British England English French France Germany China India Mexico Europe Africa Asia Atlantic Pacific Arctic Indigenous First Nations Inuit Metis Métis').split(' '));
+const BRANDS=new Set('Zoom Google Microsoft Excel Word Outlook Gmail Slack Teams Salesforce Coda Claude Anthropic Windows Mac Apple Linux Facebook Instagram LinkedIn Twitter Dropbox Docs Sheets Drive Chrome Safari Notion Asana Linear GitHub Python Java'.split(' '));
+/* A word like this right before a capitalized word says a person is coming: "teammate Tim", "this is Luca". */
+const ROLE_BEFORE=/(?:\b(?:teammate|team-mate|colleague|coworker|co-worker|friend|neighbou?r|boss|manager|director|supervisor|mentor|client|donor|applicant|volunteer|participant|attendee|member|patient|student|teacher|coach|captain|sister|brother|mom|mum|dad|mother|father|wife|husband|spouse|partner|son|daughter|cousin|uncle|aunt|named|called|contact|cc|this is|i['’]m|i am|my name is|spoke (?:to|with)|ask for)|\bname is)\s+$/i;
 const DETECTORS=[
   {type:'SECRET',label:'API key or token',re:/\b(?:sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})/g},
   {type:'CREDENTIAL',label:'After "password/username:"',re:/\b(?:password|passwd|pwd|passcode|pin|username|user ?name|user ?id|login)\s*[:=]\s*(\S+)/gid,group:1},
@@ -80,7 +87,7 @@ const DETECTORS=[
   {type:'SIN',label:'SIN (checksum)',re:/\b\d{3}[ -]?\d{3}[ -]?\d{3}\b/g,check:luhn},
   {type:'PHONE',label:'Phone pattern',re:/(?:\+?1[ .-]?)?(?:\(\d{3}\)|\b\d{3})[ .-]?\d{3}[ .-]?\d{4}\b(?:\s?(?:x|ext\.?)\s?\d{1,5})?/gi},
   {type:'POSTAL',label:'Postal code',re:/\b[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z][ -]?\d[ABCEGHJ-NPRSTV-Z]\d\b/gi},
-  {type:'ADDRESS',label:'Street address',re:/\b\d{1,6}[A-Za-z]?\s+(?:[A-Z][A-Za-z'.-]*\s+){1,4}(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Crescent|Cres|Court|Ct|Way|Place|Pl|Trail|Terrace|Parkway|Pkwy|Circle|Highway|Hwy|Square|Sq|Rue|Chemin)\b\.?(?:\s+(?:N|S|E|W|North|South|East|West))?(?:,?\s*(?:Unit|Suite|Apt|#)\s*[\w-]+)?/g},
+  {type:'ADDRESS',label:'Street address',re:/\b\d{1,6}[A-Za-z]?\s+(?:[A-Z][A-Za-z'.-]*\s+){1,4}(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Crescent|Cres|Court|Ct|Way|Place|Pl|Trail|Terrace|Parkway|Pkwy|Circle|Highway|Hwy|Square|Sq|Rue|Chemin)\b\.?(?:\s+(?:N|S|E|W|North|South|East|West)\b)?(?:,?\s*(?:Unit|Suite|Apt|#)\s*[\w-]+)?/g},
   {type:'IP',label:'IP address',re:/\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g},
   {type:'DOB',label:'Birth date',re:/\b(?:DOB|D\.O\.B\.?|date of birth|birthdate|born(?: on)?)\s*[:-]?\s*([A-Za-z0-9,\/ .-]{4,20}?\d{2,4})\b/gid,group:1},
   {type:'PERSON',label:'Name after a greeting or title',re:new RegExp("\\b(?:Hi|Hello|Hey|Dear|Thanks|Thank you|Cheers|Regards|Sincerely|Mr\\.?|Mrs\\.?|Ms\\.?|Mx\\.?|Dr\\.?|Prof\\.?)(?:,|\\s)\\s*("+NAMEWORD+"(?: +"+NAMEWORD+"){0,2})","gd"),group:1,names:true},
@@ -95,6 +102,35 @@ function cleanName(v){
   const ws=rest.split(/[ \t]+/).filter(Boolean);
   if(!ws.length||ws.some(w=>STOP.has(w)))return null;
   return [rest.trimEnd(),off,ws.length];
+}
+
+/* Single capitalized words: the guesses a pair-of-words rule cannot make. Plain text only; tables use their column rules. */
+function sentenceStart(text,i){
+  let j=i-1;
+  while(j>=0){const ch=text[j];if(ch==='\n')return true;if(/[ \t"“‘'(\[*_>\-•–—]/.test(ch)){j--;continue;}break;}
+  return j<0||/[.!?:]/.test(text[j]);
+}
+function headingLine(text,i){
+  const a=text.lastIndexOf('\n',i-1)+1,b=text.indexOf('\n',i),line=text.slice(a,b<0?text.length:b);
+  const ws=line.match(/[A-Za-z][A-Za-z'’-]*/g)||[];
+  return ws.length>=3&&ws.filter(w=>/^[A-Z][a-z]/.test(w)).length/ws.length>0.6;
+}
+function lonelyNames(text,hit,add){
+  const re=/(?:[A-Z]['’])?[A-Z][a-zà-ÿ]+(?:-[A-Z][a-zà-ÿ]+)?/g;let m;
+  while((m=re.exec(text))){
+    const w=m[0],s=m.index,e=s+w.length;
+    if(w.length<3||hit(s,e))continue;
+    if(/[A-Za-zà-ÿ]/.test(text[s-1]||''))continue;
+    if(STOP.has(w)||ORGWORDS.has(w)||NOUNS.has(w)||PLACES.has(w)||BRANDS.has(w))continue;
+    if(headingLine(text,s))continue;
+    const start=sentenceStart(text,s),first=FIRSTNAMES.has(w);
+    const role=ROLE_BEFORE.test(text.slice(Math.max(0,s-30),s));
+    const poss=/^['’]s\b/.test(text.slice(e,e+3));
+    if(role)add(w,'PERSON','Name after a clue word',true,s,e,null);
+    else if(poss)add(w,'PERSON','Name with ’s',true,s,e,null);
+    else if(first)add(w,'PERSON',start?'Possible name (common first name)':'Common first name',!start,s,e,{maybe:true});
+    else if(!start)add(w,'PERSON','Capitalized mid-sentence',false,s,e,{maybe:true});
+  }
 }
 
 /* ---------- tables ---------- */
@@ -145,7 +181,7 @@ function collect(text,opts){
     if(value.length<2||/^\[[A-Z]+_\d+(?:_[A-Z]+)?\]$/.test(value))return;
     if(s!=null){if(hit(s,e))return;claimed.push([s,e]);}
     const k=norm(value),f=found.get(k);
-    if(f){f.count++;return;}
+    if(f){f.count++;if(checked&&!f.checked){f.checked=true;f.label=label;}return;}
     found.set(k,Object.assign({key:k,value,type,label,checked,count:1},extra||{}));
   }
   function scanTerm(term,type,label,checked,extra,cs){
@@ -165,7 +201,10 @@ function collect(text,opts){
     if(first.length>=3)scanTerm(first,'PERSON','Watch list (first name)',true,{variantOf:p,suffix:'FIRST'},true);
     if(last.length>=3)scanTerm(last,'PERSON','Watch list (last name)',true,{variantOf:p,suffix:'LAST'},true);});
   // 3. anything masked before (keeps placeholders consistent across sessions)
-  Object.values(state.tokens).forEach(t=>{if(t.value.length>=3)scanTerm(t.value,t.type,'Masked before',true);});
+  Object.entries(state.tokens).forEach(([k,t])=>{if(t.value.length<3)return;
+    // a first or last name on its own is matched with its capitals, so "jane" inside jane@x.com is left for the email rule
+    const v=/^(.+)_(FIRST|LAST)$/.exec(k),base=v&&state.tokens[v[1]];
+    scanTerm(t.value,t.type,'Masked before',true,base?{variantOf:base.value,suffix:v[2]}:null,!!base);});
   // 4. column values that also show up elsewhere (e.g. a name repeated in a Notes column)
   if(table)columns.forEach(c=>{if(!c.on)return;const seen=new Set();
     table.slice(1).forEach(r=>{const v=(r[c.i]||'').trim();if(v.length>=4&&/[A-Za-z]/.test(v)&&!seen.has(norm(v))){seen.add(norm(v));scanTerm(v,c.type,'Also in column "'+c.header+'"',true);}});});
@@ -187,6 +226,15 @@ function collect(text,opts){
       }
       add(v,d.type,d.label,true,s,s+v.length,null);
     }
+  }
+  if(!table){
+    // a first or last name seen alone after the full name ("Jane" after "Jane Morrison") gets the same family of tickets
+    [...found.values()].filter(f=>f.type==='PERSON'&&f.checked&&!f.variantOf&&/ /.test(f.value)).forEach(f=>{
+      const w=f.value.split(' ');
+      if(w[0].length>=3&&!STOP.has(w[0]))scanTerm(w[0],'PERSON','Part of a name above',true,{variantOf:f.value,suffix:'FIRST'},true);
+      if(w[w.length-1].length>=3&&!STOP.has(w[w.length-1]))scanTerm(w[w.length-1],'PERSON','Part of a name above',true,{variantOf:f.value,suffix:'LAST'},true);
+    });
+    lonelyNames(scanText,hit,add);
   }
   return {findings:[...found.values()],table,columns};
 }
