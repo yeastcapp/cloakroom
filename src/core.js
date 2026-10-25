@@ -66,7 +66,7 @@ function assign(f){
 }
 
 /* ---------- detectors ---------- */
-const STOP=new Set(('The A An This That These Those Our We I It Its If In On At For And But Or So Please Thanks Thank Hi Hello Hey Dear Best Regards Kind Warm Cheers Sincerely Yes No Note Re Fw Fwd Subject From To Cc Bcc Sent Date Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December Mr Mrs Ms Mx Dr Prof My Your Their His Her As Also When Where What Why How Who With Without Once After Before During Next Last Each Every All Some Any New Here There Team Board Council Committee Annual Report Q1 Q2 Q3 Q4').split(' '));
+const STOP=new Set(('The A An This That These Those Our We I It Its If In On At For And But Or So Please Thanks Thank Hi Hello Hey Dear Best Regards Kind Warm Cheers Sincerely Yes No Note Re Fw Fwd Subject From To Cc Bcc Sent Date Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December Mr Mrs Ms Mx Dr Prof My Your Their His Her As Also When Where What Why How Who With Without Once After Before During Next Last Each Every All Some Any New Here There Team Board Council Committee Annual Report Q1 Q2 Q3 Q4 Yesterday Today Tomorrow Tonight Then Now Later Soon Maybe Perhaps Sorry Unfortunately Hopefully Meanwhile However Still Just Only Even Okay Ok Great Sure Good Morning Afternoon Evening Happy Congratulations Welcome Attached Following Regarding').split(' '));
 
 const FIRSTNAMES=new Set(('James John Robert Michael William David Richard Joseph Thomas Charles Christopher Daniel Matthew Anthony Mark Donald Steven Paul Andrew Joshua Kenneth Kevin Brian George Timothy Ronald Edward Jason Jeffrey Ryan Jacob Gary Nicholas Eric Jonathan Stephen Larry Justin Scott Brandon Benjamin Samuel Gregory Alexander Frank Patrick Raymond Jack Dennis Jerry Tyler Aaron Jose Adam Nathan Henry Douglas Zachary Peter Kyle Ethan Walter Noah Jeremy Christian Keith Roger Terry Gerald Harold Sean Austin Carl Arthur Lawrence Dylan Jesse Jordan Bryan Billy Joe Bruce Gabriel Logan Albert Willie Alan Juan Wayne Elijah Randy Roy Vincent Ralph Eugene Russell Bobby Mason Philip Louis Ian Colin Graham Neil Stuart Simon Martin Trevor Derek Craig Darren Marc Luc Pierre Jean Francois Mohammed Ahmed Ali Omar Raj Amit Arjun Wei Jun Kai Tim Tom Rob Mike Dave Dan Matt Tony Steve Andy Josh Ken Ben Sam Greg Alex Pat Ray Nick Chris Mary Patricia Jennifer Linda Elizabeth Barbara Susan Jessica Sarah Karen Lisa Nancy Betty Margaret Sandra Ashley Kimberly Emily Donna Michelle Carol Amanda Dorothy Melissa Deborah Stephanie Stefanie Rebecca Sharon Laura Cynthia Kathleen Amy Angela Shirley Anna Brenda Pamela Emma Nicole Helen Samantha Katherine Christine Debra Rachel Carolyn Janet Catherine Maria Heather Diane Ruth Julie Olivia Joyce Virginia Victoria Kelly Lauren Christina Joan Evelyn Judith Megan Andrea Cheryl Hannah Jacqueline Martha Gloria Teresa Ann Anne Sara Madison Frances Kathryn Janice Jean Abigail Alice Judy Sophia Grace Denise Amber Doris Marilyn Danielle Beverly Isabella Theresa Diana Natalie Brittany Charlotte Marie Kayla Alexis Lori Melanie Holly Dawn Cristina Doramy Haley Hailey Julia Claire Leah Chloe Zoe Fiona Jane Jill Kate Katie Liz Beth Jen Jenn Sue Kim Meg Nadia Priya Aisha Fatima Mei Ling Yuki Sophie Isabelle Genevieve Chantal Nathalie Sylvie Josee').split(' '));
 const ORGWORDS=new Set(('Foundation Society Association Inc Ltd Corp Corporation Centre Center Council Fund Trust Charity Church Hospital Hospice Institute University College School Club Network Alliance Coalition Federation Agency Services Mission Shelter League Group Partners Canada Canadian Ontario Manitoba Alberta Columbia Quebec Scotia Brunswick Saskatchewan').split(' '));
@@ -75,6 +75,14 @@ const NAMEWORD="[A-Z][a-zà-ÿ'’-]+";
 
 /* More first names, from many backgrounds. Only used as a hint: a lone capitalized word in this list is ticked. */
 ('Luca Liam Mia Ava Zoe Zoey Sofia Sophia Isabella Camila Valentina Mateo Diego Carlos Miguel Santiago Lucas Marco Giulia Giovanni Matteo Francesca Andre Andrei Dmitri Dmitry Olga Ivan Anya Natalia Nikolai Sven Lars Ingrid Astrid Priya Aisha Fatima Mohammad Muhammad Yusuf Hassan Hussein Ibrahim Khalid Tariq Jamal Malik Layla Leila Noor Hana Sana Zainab Imran Rahul Anil Sunita Deepa Meera Anjali Vikram Sanjay Harpreet Gurpreet Jasdeep Simran Manpreet Rajesh Suresh Ravi Kavita Neha Pooja Ananya Aarav Ming Mei Ling Xin Yan Hui Jin Hyun Soo Min Jiho Seo Yuki Hiro Kenji Haruto Akira Sakura Aiko Kofi Kwame Amara Chidi Ngozi Thandi Sipho Oluwaseun Chinedu Adebayo Nia Imani Aroha Tane Wiremu Kiri Anika Elena Elsa Greta Katya Sasha Mikhail Pavel Tomas Jakub Piotr Marek Kasia Eva Lena Mila Nora Lea Leo Theo Max Finn Oscar Oliver Jacob Elijah Mason Ethan Lucy Chloe Ella Grace Hazel Ivy Ruby Stella Violet Willow Aurora Penelope Layla Riley Avery Quinn Harper Blake Cameron Morgan Taylor Casey Jamie Drew Robin Dana Jordan Alexis Sasha Kim Lee Jay Sean Shawn Shane Tristan Evan Owen Caleb Isaac Eli Hugo Felix Jules Remy Antoine Mathieu Etienne Amelie Camille Chantal Genevieve Josee Mireille Sylvie Nathalie Isabelle Marie Celine Lucie Manon').split(' ').forEach(n=>FIRSTNAMES.add(n));
+/* The big lists live in names.js (generated by tools/build-names.js). Ambiguous names are also everyday words (Will, May). */
+const SURNAMES=new Set(),AMBIGUOUS=new Set();
+if(typeof NAME_DATA!=='undefined'){
+  NAME_DATA.first.split(' ').forEach(n=>FIRSTNAMES.add(n));
+  NAME_DATA.last.split(' ').forEach(n=>SURNAMES.add(n));
+  NAME_DATA.ambiguous.split(' ').forEach(n=>AMBIGUOUS.add(n));
+}
+const knownName=w=>FIRSTNAMES.has(w)||SURNAMES.has(w);
 const PLACES=new Set(('Toronto Ottawa Montreal Montréal Vancouver Calgary Edmonton Winnipeg Halifax Moncton Regina Saskatoon Hamilton Kitchener Waterloo Mississauga Brampton Surrey Burnaby Victoria Fredericton Charlottetown Yukon Nunavut Labrador Newfoundland Nova Canada Canadian America American British England English French France Germany China India Mexico Europe Africa Asia Atlantic Pacific Arctic Indigenous First Nations Inuit Metis Métis').split(' '));
 const BRANDS=new Set('Zoom Google Microsoft Excel Word Outlook Gmail Slack Teams Salesforce Coda Claude Anthropic Windows Mac Apple Linux Facebook Instagram LinkedIn Twitter Dropbox Docs Sheets Drive Chrome Safari Notion Asana Linear GitHub Python Java'.split(' '));
 /* A word like this right before a capitalized word says a person is coming: "teammate Tim", "this is Luca". */
@@ -123,12 +131,17 @@ function lonelyNames(text,hit,add){
     if(/[A-Za-zà-ÿ]/.test(text[s-1]||''))continue;
     if(STOP.has(w)||ORGWORDS.has(w)||NOUNS.has(w)||PLACES.has(w)||BRANDS.has(w))continue;
     if(headingLine(text,s))continue;
-    const start=sentenceStart(text,s),first=FIRSTNAMES.has(w);
+    // inside a capitalized phrase ("the Strategic Plan"): the pair rule already judged it
+    const prev=/([A-Za-zà-ÿ'’-]+)[ \t]+$/.exec(text.slice(Math.max(0,s-40),s));
+    if(prev&&/^[A-Z]/.test(prev[1])&&!STOP.has(prev[1])&&!sentenceStart(text,s-prev[0].length))continue;
+    if(/^[ \t]+[A-Z][a-zà-ÿ]/.test(text.slice(e,e+4)))continue;
+    const start=sentenceStart(text,s),known=knownName(w),amb=AMBIGUOUS.has(w);
     const role=ROLE_BEFORE.test(text.slice(Math.max(0,s-30),s));
     const poss=/^['’]s\b/.test(text.slice(e,e+3));
     if(role)add(w,'PERSON','Name after a clue word',true,s,e,null);
     else if(poss)add(w,'PERSON','Name with ’s',true,s,e,null);
-    else if(first)add(w,'PERSON',start?'Possible name (common first name)':'Common first name',!start,s,e,{maybe:true});
+    else if(known&&!start)add(w,'PERSON',FIRSTNAMES.has(w)?'Known first name':'Known surname',true,s,e,{maybe:true});
+    else if(known&&!amb)add(w,'PERSON','Possible name (known name)',false,s,e,{maybe:true});
     else if(!start)add(w,'PERSON','Capitalized mid-sentence',false,s,e,{maybe:true});
   }
 }
@@ -216,12 +229,16 @@ function collect(text,opts){
       if(!v)continue;
       if(d.check&&!d.check(v))continue;
       if(d.maybe&&table&&s<text.indexOf('\n'))continue;
+      if(d.maybe&&!table&&headingLine(scanText,s)){const w0=v.trim().split(/\s+/)[0];if(!FIRSTNAMES.has(w0)||AMBIGUOUS.has(w0))continue;}
       if(d.names){const c=cleanName(v);if(!c)continue;if(d.maybe&&c[2]<2)continue;v=c[0];s+=c[1];}
       if(d.maybe){
         const ws=v.split(' ');
         if(ws.some(w=>NOUNS.has(w)))continue;               // "Investment Policy" etc.
         if(ws.some(w=>ORGWORDS.has(w))){add(v,'ORG','Possible organization',false,s,s+v.length,{maybe:true});continue;}
-        add(v,'PERSON',FIRSTNAMES.has(ws[0])?'Possible name (common first name)':'Possible name',FIRSTNAMES.has(ws[0])&&!table,s,s+v.length,{maybe:true});
+        const w0=ws[0],wl=ws[ws.length-1];
+        const firstOk=FIRSTNAMES.has(w0)&&(!AMBIGUOUS.has(w0)||SURNAMES.has(wl));
+        const lastOk=SURNAMES.has(wl)&&!AMBIGUOUS.has(wl)&&!AMBIGUOUS.has(w0);
+        add(v,'PERSON',firstOk?'Possible name (known first name)':lastOk?'Possible name (known surname)':'Possible name',(firstOk||lastOk)&&!table,s,s+v.length,{maybe:true});
         continue;
       }
       add(v,d.type,d.label,true,s,s+v.length,null);

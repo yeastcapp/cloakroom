@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 global.window = {};
 global.localStorage = { getItem() { return null; }, setItem() {} };
-const code = fs.readFileSync(path.join(__dirname, '../src/core.js'), 'utf8')
+const code = fs.readFileSync(path.join(__dirname, '../src/names.js'), 'utf8') + '\n'
+  + fs.readFileSync(path.join(__dirname, '../src/core.js'), 'utf8')
   + '\nreturn {collect, mask, restore, reset: () => { state = blankState(); }};';
 const { collect, mask, restore, reset } = new Function(code)();
 
@@ -36,6 +37,13 @@ const jm = masked(jane);
 check('a first or last name on its own follows the full name', /\[PERSON_\d+_FIRST\]/.test(jm) && /\[PERSON_\d+_LAST\]/.test(jm), jm);
 check('an address followed by a word starting with E is still masked', !/King/.test(jm), jm);
 check('an email stays an email when the first name has a ticket', /\[EMAIL_\d+\]/.test(jm) && !/@x\.com/.test(jm), jm);
+
+const tickedIn = t => ticked(scan(t));
+check('a surname in mid-sentence is caught', tickedIn('We met with Brown and Nguyen yesterday.').includes('Brown') && tickedIn('We met with Brown and Nguyen yesterday.').includes('Nguyen'), JSON.stringify(tickedIn('We met with Brown and Nguyen yesterday.')));
+check('a colour at the start of a sentence is not ticked', !tickedIn('Brown rice is good.').includes('Brown'), JSON.stringify(tickedIn('Brown rice is good.')));
+check('everyday words that are also names are left alone at the start', scan('Will you come? May I ask?').findings.length === 0, JSON.stringify(scan('Will you come? May I ask?').findings.map(f => f.value)));
+check('a pair with a known surname is ticked', tickedIn('The cheque came from Adaeze Okafor last week.').includes('Adaeze Okafor'), JSON.stringify(tickedIn('The cheque came from Adaeze Okafor last week.')));
+check('francophone names are known', tickedIn('Merci à Geneviève Tremblay pour tout.').some(v => /Tremblay/.test(v)), JSON.stringify(tickedIn('Merci à Geneviève Tremblay pour tout.')));
 
 for (const t of [hi, jane.replace('jane@x.com', 'jane@x.com'), days, 'Mark the date. Frank talk with Mark.',
   "O'Brien and Jean-Luc met Anne-Marie. Dr. Singh said Sam's idea was good."]) {
