@@ -25,6 +25,14 @@
   --color-warn: oklch(45% 0.1 70); --color-warn-soft: oklch(95% 0.04 85);
   --color-scrim: oklch(20% 0.01 85 / 0.4);
 
+  /* the parade: skin, hair and everyday clothes; costumes in party colours */
+  --skin-1: oklch(87% 0.045 65); --skin-2: oklch(77% 0.07 58); --skin-3: oklch(65% 0.085 52); --skin-4: oklch(51% 0.075 45); --skin-5: oklch(39% 0.055 40);
+  --hair-1: oklch(26% 0.02 50); --hair-2: oklch(44% 0.07 50); --hair-3: oklch(76% 0.11 88); --hair-4: oklch(54% 0.13 38);
+  --cloth-1: oklch(60% 0.08 240); --cloth-2: oklch(62% 0.09 150); --cloth-3: oklch(70% 0.11 85); --cloth-4: oklch(58% 0.03 260); --cloth-5: oklch(58% 0.11 25); --cloth-6: oklch(56% 0.07 200);
+  --fancy-1: oklch(50% 0.18 300); --fancy-2: oklch(76% 0.14 85); --fancy-3: oklch(50% 0.19 15); --fancy-4: oklch(52% 0.13 165);
+  --c-leg: oklch(32% 0.02 260); --c-eye: oklch(22% 0.01 260); --c-eye-masked: oklch(97% 0.01 300);
+  --c-mask: oklch(27% 0.1 300); --c-hat: oklch(24% 0.02 300); --c-gold: oklch(80% 0.15 88);
+
   --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -49,5 +57,6 @@
     --color-success: oklch(75% 0.12 150);
     --color-warn: oklch(80% 0.11 80); --color-warn-soft: oklch(28% 0.05 80);
     --color-scrim: oklch(8% 0.01 85 / 0.55);
+    --c-leg: oklch(72% 0.02 260); --c-hat: oklch(42% 0.04 300);
   }
 }

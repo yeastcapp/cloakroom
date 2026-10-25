@@ -2,7 +2,19 @@
 const STORE='privacyMask.v1';
 const TYPES=['PERSON','ORG','EMAIL','PHONE','ADDRESS','POSTAL','LOCATION','SIN','CARD','DOB','ID','CREDENTIAL','SECRET','IP','OTHER'];
 const TYPE_LABEL={PERSON:'People',ORG:'Organizations',EMAIL:'Emails',PHONE:'Phone numbers',ADDRESS:'Street addresses',POSTAL:'Postal codes',LOCATION:'Places',SIN:'SINs',CARD:'Card numbers',DOB:'Birth dates',ID:'IDs / account numbers',CREDENTIAL:'Passwords / usernames',SECRET:'API keys / tokens',IP:'IP addresses',OTHER:'Other'};
-function blankState(){return{tokens:{},index:{},counters:{},people:'',orgs:'',retentionDays:3};}
+/* A visit is one check-in: its own tickets, numbered from 1, erased together.
+   state.visits = { id: {id, n, created, used, kind, name, tokens:{TICKET:{value,type}}, index:{normalized value:TICKET}, counters:{TYPE:n}} } */
+function blankState(){return{v:2,visits:{},visitSeq:0,people:'',orgs:'',retentionDays:3};}
+/* Older saves and keys kept one shared pool of tickets; they become a single visit numbered 0. */
+function upgradeState(s){
+  s=Object.assign(blankState(),s);
+  if(s.tokens&&Object.keys(s.tokens).length){
+    const ts=Math.max(...Object.values(s.tokens).map(t=>t.ts||0))||Date.now();
+    s.visits.v0={id:'v0',n:0,created:ts,used:ts,kind:'text',name:'Earlier tickets',tokens:s.tokens,index:s.index||{},counters:s.counters||{}};
+  }
+  delete s.tokens;delete s.index;delete s.counters;
+  return s;
+}
 /* Storage: in the desktop app the state is encrypted on disk by Rust (key in Keychain / Credential Manager).
    Opened as a plain web page (for testing) it falls back to localStorage. */
 const TAURI=window.__TAURI__||null;
@@ -13,7 +25,7 @@ async function initState(){
   try{
     const raw=TAURI?await invoke('load_state'):localStorage.getItem(STORE);
     const s=JSON.parse(raw||'null');
-    if(s&&s.tokens)state=Object.assign(blankState(),s);
+    if(s&&(s.visits||s.tokens))state=upgradeState(s);
     storageOK=true;
   }catch(e){storageOK=false;storageError=String(e);console.error(e);}
 }
@@ -30,18 +42,23 @@ async function flushState(){
 async function wipeStorage(){
   try{if(TAURI)await invoke('wipe_state');else localStorage.removeItem(STORE);}catch(e){console.error(e);}
 }
-/* Auto-erase: drop tickets not used for state.retentionDays days */
+/* Auto-erase: drop visits not used for state.retentionDays days */
 function purgeExpired(){
   const days=+state.retentionDays||0;if(!days)return 0;
   const cutoff=Date.now()-days*864e5;let n=0;
-  for(const [t,e] of Object.entries(state.tokens)){
-    if(!e.ts)e.ts=Date.now(); // tickets from before auto-erase existed start their clock now
-    if(e.ts<cutoff){delete state.index[norm(e.value)];delete state.tokens[t];n++;}
-  }
-  if(!Object.keys(state.tokens).length)state.counters={};
+  for(const [id,v] of Object.entries(state.visits)){if((v.used||v.created)<cutoff){delete state.visits[id];n++;}}
   if(n)saveState();
   return n;
 }
+function newVisit(kind,name){
+  const n=++state.visitSeq,id='v'+n+'-'+Date.now().toString(36);
+  state.visits[id]={id,n,created:Date.now(),used:Date.now(),kind:kind||'text',name:name||'',tokens:{},index:{},counters:{}};
+  saveState();
+  return state.visits[id];
+}
+function eraseVisit(id){if(state.visits[id]){delete state.visits[id];saveState();}}
+const visitList=()=>Object.values(state.visits).sort((a,b)=>b.n-a.n);
+const ticketCount=()=>Object.values(state.visits).reduce((a,v)=>a+Object.keys(v.tokens).length,0);
 const norm=v=>String(v).trim().replace(/\s+/g,' ').toLowerCase();
 const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const flex=s=>esc(s.trim()).replace(/\s+/g,'\\s+');
@@ -49,20 +66,20 @@ const B0='(?<![A-Za-z0-9À-ÿ])', B1='(?![A-Za-z0-9À-ÿ])';
 
 function luhn(v){const d=v.replace(/\D/g,'');let s=0,alt=false;for(let i=d.length-1;i>=0;i--){let n=+d[i];if(alt){n*=2;if(n>9)n-=9;}s+=n;alt=!alt;}return s%10===0;}
 
-function tokenFor(value,type,forced){
-  const k=norm(value);
-  if(state.index[k]){const e=state.tokens[state.index[k]];if(e)e.ts=Date.now();return state.index[k];}
+function tokenFor(v,value,type,forced){
+  const k=norm(value);v.used=Date.now();
+  if(v.index[k]&&v.tokens[v.index[k]])return v.index[k];
   let t=forced;
-  if(!t||state.tokens[t]){
-    do{state.counters[type]=(state.counters[type]||0)+1;t=type+'_'+state.counters[type];}while(state.tokens[t]);
+  if(!t||v.tokens[t]){
+    do{v.counters[type]=(v.counters[type]||0)+1;t=type+'_'+v.counters[type];}while(v.tokens[t]);
   }
-  state.tokens[t]={value:String(value).trim().replace(/\s+/g,' '),type,ts:Date.now()};
-  state.index[k]=t;
+  v.tokens[t]={value:String(value).trim().replace(/\s+/g,' '),type};
+  v.index[k]=t;
   return t;
 }
-function assign(f){
-  if(f.variantOf){const base=tokenFor(f.variantOf,'PERSON');return tokenFor(f.value,'PERSON',base+'_'+f.suffix);}
-  return tokenFor(f.value,f.type);
+function assign(v,f){
+  if(f.variantOf){const base=tokenFor(v,f.variantOf,'PERSON');return tokenFor(v,f.value,'PERSON',base+'_'+f.suffix);}
+  return tokenFor(v,f.value,f.type);
 }
 
 /* ---------- detectors ---------- */
@@ -121,7 +138,9 @@ function sentenceStart(text,i){
 function headingLine(text,i){
   const a=text.lastIndexOf('\n',i-1)+1,b=text.indexOf('\n',i),line=text.slice(a,b<0?text.length:b);
   const ws=line.match(/[A-Za-z][A-Za-z'’-]*/g)||[];
-  return ws.length>=3&&ws.filter(w=>/^[A-Z][a-z]/.test(w)).length/ws.length>0.6;
+  const r=ws.filter(w=>/^[A-Z][a-z]/.test(w)).length/(ws.length||1);
+  // a heading has no sentence punctuation; a long line in Title Case reads as one even with it
+  return (ws.length>=3&&r>0.6&&!/[.!?,;:]\s*$/.test(line.trim()))||(ws.length>=8&&r>0.7);
 }
 function lonelyNames(text,hit,add){
   const re=/(?:[A-Z]['’])?[A-Z][a-zà-ÿ]+(?:-[A-Z][a-zà-ÿ]+)?/g;let m;
@@ -214,10 +233,10 @@ function collect(text,opts){
     if(first.length>=3)scanTerm(first,'PERSON','Watch list (first name)',true,{variantOf:p,suffix:'FIRST'},true);
     if(last.length>=3)scanTerm(last,'PERSON','Watch list (last name)',true,{variantOf:p,suffix:'LAST'},true);});
   // 3. anything masked before (keeps placeholders consistent across sessions)
-  Object.entries(state.tokens).forEach(([k,t])=>{if(t.value.length<3)return;
+  Object.values(state.visits).forEach(vis=>Object.entries(vis.tokens).forEach(([k,t])=>{if(t.value.length<3)return;
     // a first or last name on its own is matched with its capitals, so "jane" inside jane@x.com is left for the email rule
-    const v=/^(.+)_(FIRST|LAST)$/.exec(k),base=v&&state.tokens[v[1]];
-    scanTerm(t.value,t.type,'Masked before',true,base?{variantOf:base.value,suffix:v[2]}:null,!!base);});
+    const v=/^(.+)_(FIRST|LAST)$/.exec(k),base=v&&vis.tokens[v[1]];
+    scanTerm(t.value,t.type,'Masked before',true,base?{variantOf:base.value,suffix:v[2]}:null,!!base);}));
   // 4. column values that also show up elsewhere (e.g. a name repeated in a Notes column)
   if(table)columns.forEach(c=>{if(!c.on)return;const seen=new Set();
     table.slice(1).forEach(r=>{const v=(r[c.i]||'').trim();if(v.length>=4&&/[A-Za-z]/.test(v)&&!seen.has(norm(v))){seen.add(norm(v));scanTerm(v,c.type,'Also in column "'+c.header+'"',true);}});});
@@ -257,38 +276,43 @@ function collect(text,opts){
 }
 
 /* ---------- masking ---------- */
-function makeReplacer(items,stats){
-  const map=new Map();items.forEach(f=>map.set(f.key,assign(f)));
+function makeReplacer(v,items,stats){
+  const map=new Map();items.forEach(f=>map.set(f.key,assign(v,f)));
   const build=(list,flags)=>list.length?new RegExp(B0+'(?:'+list.sort((a,b)=>b.value.length-a.value.length).map(f=>flex(f.value)).join('|')+')'+B1,flags):null;
   const ci=build(items.filter(f=>!f.variantOf),'gi'),cs=build(items.filter(f=>f.variantOf),'g');
-  const sub=m=>{const t=map.get(norm(m));if(!t)return m;stats[state.tokens[t].type]=(stats[state.tokens[t].type]||0)+1;return '['+t+']';};
+  const sub=m=>{const t=map.get(norm(m));if(!t)return m;stats[v.tokens[t].type]=(stats[v.tokens[t].type]||0)+1;return '['+t+']';};
   return s=>{if(ci)s=s.replace(ci,sub);if(cs)s=s.replace(cs,sub);return s;};
 }
-function mask(text,scan,checkedKeys){
+function mask(text,scan,checkedKeys,v){
+  v=v||newVisit(scan.table?'table':'text');
   const stats={};
   const items=scan.findings.filter(f=>checkedKeys.has(f.key));
-  const rep=makeReplacer(items,stats);
+  const rep=makeReplacer(v,items,stats);
   let out;
   if(scan.table){
     out=scan.table.map((r,ri)=>r.map((c,ci)=>{
       const col=scan.columns[ci];
-      if(ri>0&&col&&col.on&&c.trim()){const t=tokenFor(c,col.type);stats[col.type]=(stats[col.type]||0)+1;return '['+t+']';}
+      if(ri>0&&col&&col.on&&c.trim()){const t=tokenFor(v,c,col.type);stats[col.type]=(stats[col.type]||0)+1;return '['+t+']';}
       return rep(c);
     }).join('\t')).join('\n');
   } else out=rep(text);
   saveState();
-  return {out,stats,skipped:scan.findings.filter(f=>!checkedKeys.has(f.key)&&!f.maybe).length};
+  return {out,stats,visit:v,skipped:scan.findings.filter(f=>!checkedKeys.has(f.key)&&!f.maybe).length};
 }
 
 /* ---------- restoring ---------- */
-function restore(text){
-  const toks=Object.keys(state.tokens).sort((a,b)=>b.length-a.length);
-  let n=0;
-  if(toks.length){
-    const alt=toks.map(esc).join('|');
-    const re=new RegExp('\\\\?\\[\\s*('+alt+')\\s*\\\\?\\]|(?<![A-Za-z0-9_])('+alt+')(?![A-Za-z0-9_])','g');
-    text=text.replace(re,(m,a,b)=>{n++;return state.tokens[a||b].value;});
-  }
-  const unknown=[...new Set((text.match(/\[[A-Z]+_\d+(?:_[A-Z]+)?\]/g)||[]))];
-  return {text,n,unknown};
+const TICKET_RE=()=>new RegExp('\\\\?\\[\\s*((?:'+TYPES.join('|')+')_\\d+(?:_FIRST|_LAST)?)\\s*\\\\?\\]|(?<![A-Za-z0-9_])((?:'+TYPES.join('|')+')_\\d+(?:_FIRST|_LAST)?)(?![A-Za-z0-9_])','g');
+/* Which visit a reply belongs to: the one holding the most of its tickets, the newest on a tie. */
+function matchVisit(text){
+  const seen=new Set();let m;const re=TICKET_RE();
+  while((m=re.exec(text)))seen.add(m[1]||m[2]);
+  const scored=visitList().map(v=>({v,hits:[...seen].filter(t=>v.tokens[t]).length})).filter(x=>x.hits).sort((a,b)=>b.hits-a.hits||b.v.used-a.v.used);
+  return {best:scored[0]?scored[0].v:null,also:scored.slice(1).filter(x=>x.hits===scored[0].hits).map(x=>x.v),tickets:seen.size};
+}
+function restore(text,v){
+  if(v===undefined)v=matchVisit(text).best;
+  let n=0;const unknown=new Set();
+  text=text.replace(TICKET_RE(),(m,a,b)=>{const t=a||b,e=v&&v.tokens[t];if(!e){unknown.add('['+t+']');return m;}n++;return e.value;});
+  if(v&&n){v.used=Date.now();saveState();}
+  return {text,n,unknown:[...unknown],visit:v||null};
 }

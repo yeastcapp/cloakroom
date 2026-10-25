@@ -52,6 +52,7 @@
     <!-- CHECK IN: real text goes in on the left, the disguised text comes out on the right -->
     <section id="mask" class="room on">
       <header><h1>Check in</h1></header>
+      <div class="stage" id="maskStage" aria-hidden="true"></div>
       <div class="rail">
         <div class="col">
           <div class="pane">
@@ -74,13 +75,13 @@
           </div>
         </div>
         <div class="door">
-          <button type="button" class="btn primary" id="maskBtn">Check in</button>
+          <button type="button" class="btn primary" id="maskBtn">Disguise</button>
           <span class="meta" id="maskInfo"></span>
         </div>
         <div class="pane costume">
-          <div class="panehead"><h2>Disguised</h2><label class="check"><input type="checkbox" id="addNote" checked> Add a note for Claude</label></div>
+          <div class="panehead"><h2>Disguised <span class="meta" id="visitInfo"></span></h2><label class="check"><input type="checkbox" id="addNote" checked> Add a note for Claude</label></div>
           <textarea id="output" readonly aria-label="Disguised text" placeholder="Ready to send"></textarea>
-          <div class="row"><button type="button" class="btn" id="copyOut">Copy</button></div>
+          <div class="row"><button type="button" class="btn" id="copyOut">Copy</button><button type="button" class="btn" id="copyCsv" hidden>Copy as CSV</button><button type="button" class="btn" id="saveCsv" hidden>Save as CSV…</button></div>
           <div id="maskWarn"></div>
         </div>
       </div>
@@ -89,9 +90,10 @@
     <!-- PICK UP: Claude's disguised reply goes in on the left, the real text comes out on the right -->
     <section id="restore" class="room">
       <header><h1>Pick up</h1></header>
+      <div class="stage" id="restoreStage" aria-hidden="true"></div>
       <div class="rail">
         <div class="pane costume">
-          <div class="panehead"><h2>Claude’s reply</h2><span class="meta" id="rFileInfo"></span></div>
+          <div class="panehead"><h2>Claude’s reply <span class="meta" id="rFileInfo"></span></h2><select id="rVisit" aria-label="Visit"><option value="">Match visit automatically</option></select></div>
           <textarea id="rin" class="drop" aria-label="Claude's reply" placeholder="Paste Claude's reply, or drop a file"></textarea>
           <div class="row">
             <label class="btn">Open file…<input id="rfile" type="file" accept=".txt,.csv,.tsv,.md" hidden></label>
@@ -99,7 +101,7 @@
           </div>
         </div>
         <div class="door">
-          <button type="button" class="btn primary" id="restoreBtn">Pick up</button>
+          <button type="button" class="btn primary" id="restoreBtn">Unmask</button>
           <span class="meta" id="rInfo"></span>
         </div>
         <div class="pane">
@@ -110,8 +112,8 @@
         </div>
       </div>
       <div id="donePanel" class="leave" style="display:none">
-        <label class="check"><input type="checkbox" id="doneLists"> Also erase my watch lists</label>
-        <button type="button" class="btn danger" id="doneBtn">Erase everything now</button>
+        <label class="check"><input type="checkbox" id="doneLists"> Also erase every other visit and my watch lists</label>
+        <button type="button" class="btn danger" id="doneBtn">Erase this visit</button>
       </div>
     </section>
 
@@ -131,7 +133,7 @@
       <div class="pair">
         <div class="pane">
           <div class="group">
-            <label class="panehead" for="retention"><h2>Erase tickets after</h2></label>
+            <label class="panehead" for="retention"><h2>Erase visits after</h2></label>
             <select id="retention"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="0">Never</option></select>
           </div>
           <div class="group">
@@ -147,7 +149,7 @@
           <div id="storeWarn"></div>
         </div>
         <div class="pane">
-          <div class="panehead"><h2>Your tickets</h2><input type="search" id="vq" aria-label="Search tickets" placeholder="Search"></div>
+          <div class="panehead"><h2>Visits</h2><input type="search" id="vq" aria-label="Search tickets" placeholder="Search"></div>
           <div class="vaultwrap"><table class="vault" id="vault"></table></div>
         </div>
       </div>
@@ -165,6 +167,7 @@
 
 <script src="names.js"></script>
 <script src="core.js"></script>
+<script src="parade.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -6,8 +6,8 @@ global.window = {};
 global.localStorage = { getItem() { return null; }, setItem() {} };
 const code = fs.readFileSync(path.join(__dirname, '../src/names.js'), 'utf8') + '\n'
   + fs.readFileSync(path.join(__dirname, '../src/core.js'), 'utf8')
-  + '\nreturn {collect, mask, restore, reset: () => { state = blankState(); }};';
-const { collect, mask, restore, reset } = new Function(code)();
+  + '\nreturn {collect, mask, restore, upgradeState, reset: () => { state = blankState(); }};';
+const { collect, mask, restore, upgradeState, reset } = new Function(code)();
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : '\n     ' + detail)); };
@@ -39,6 +39,7 @@ check('an address followed by a word starting with E is still masked', !/King/.t
 check('an email stays an email when the first name has a ticket', /\[EMAIL_\d+\]/.test(jm) && !/@x\.com/.test(jm), jm);
 
 const tickedIn = t => ticked(scan(t));
+check('a short line with names is not taken for a heading', ['Alex', 'Tim'].every(n => tickedIn('Hi Alex, ask Tim.').includes(n)), JSON.stringify(tickedIn('Hi Alex, ask Tim.')));
 check('a surname in mid-sentence is caught', tickedIn('We met with Brown and Nguyen yesterday.').includes('Brown') && tickedIn('We met with Brown and Nguyen yesterday.').includes('Nguyen'), JSON.stringify(tickedIn('We met with Brown and Nguyen yesterday.')));
 check('a colour at the start of a sentence is not ticked', !tickedIn('Brown rice is good.').includes('Brown'), JSON.stringify(tickedIn('Brown rice is good.')));
 check('everyday words that are also names are left alone at the start', scan('Will you come? May I ask?').findings.length === 0, JSON.stringify(scan('Will you come? May I ask?').findings.map(f => f.value)));
@@ -50,6 +51,17 @@ for (const t of [hi, jane.replace('jane@x.com', 'jane@x.com'), days, 'Mark the d
   const out = masked(t);
   check('round trip: ' + t.slice(0, 40), restore(out).text === t, restore(out).text);
 }
+
+// visits: each check-in numbers its own tickets, and a reply finds its own visit
+reset();
+const one = scan('Hi Alex, ask Tim.'), v1 = mask('Hi Alex, ask Tim.', one, new Set(one.findings.filter(f => f.checked).map(f => f.key))).visit;
+const two = collect('Dear Priya, email Sam.', {}), v2 = mask('Dear Priya, email Sam.', two, new Set(two.findings.filter(f => f.checked).map(f => f.key))).visit;
+check('each visit starts its tickets at 1', v1.tokens.PERSON_1 && v2.tokens.PERSON_1 && v1 !== v2, JSON.stringify([Object.keys(v1.tokens), Object.keys(v2.tokens)]));
+check('a reply goes back to the newest visit holding its tickets', restore('Thanks [PERSON_1]').text === 'Thanks Priya', restore('Thanks [PERSON_1]').text);
+check('a chosen visit wins over the automatic match', restore('Thanks [PERSON_1]', v1).text === 'Thanks Alex', restore('Thanks [PERSON_1]', v1).text);
+check('a ticket the visit lacks is left as is', restore('[PERSON_7] here', v1).unknown[0] === '[PERSON_7]', JSON.stringify(restore('[PERSON_7] here', v1)));
+const up = upgradeState({ tokens: { PERSON_1: { value: 'Jane', type: 'PERSON', ts: 1 } }, index: { jane: 'PERSON_1' }, counters: { PERSON: 1 } });
+check('an older save becomes one visit', up.visits.v0 && up.visits.v0.tokens.PERSON_1.value === 'Jane' && !up.tokens, JSON.stringify(up));
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);
