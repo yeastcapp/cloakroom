@@ -163,6 +163,15 @@
     <div class="row end"><button type="button" class="btn ghost" id="modalNo">Cancel</button><button type="button" class="btn danger" id="modalYes">OK</button></div>
   </div>
 </div>
+<div id="kcNote" class="modal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="kcTitle">
+    <svg class="kc-ico" aria-hidden="true"><use href="#i-lock"/></svg>
+    <h2 id="kcTitle">Unlocking your tickets</h2>
+    <p>Your tickets are encrypted, and the key is kept in your Mac’s Keychain. macOS is about to ask for your Mac login password so Cloakroom can use that key.</p>
+    <p>Choose <b>Always Allow</b> and it won’t ask again until the next update.</p>
+    <div class="row end"><button type="button" class="btn primary" id="kcOk">Continue</button></div>
+  </div>
+</div>
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script src="names.js"></script>

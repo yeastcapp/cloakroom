@@ -166,6 +166,8 @@ table.vault .x { min-width: 28px; min-height: 28px; border: 0; background: none;
 /* dialog and toast */
 .modal { position: fixed; inset: 0; background: var(--color-scrim); display: grid; place-items: center; z-index: var(--z-modal); }
 .modal .box { background: var(--color-paper-3); border: var(--rule-hair) solid var(--color-field-edge); border-radius: var(--radius-card); padding: var(--space-lg); max-width: 420px; display: flex; flex-direction: column; gap: var(--space-md); }
+.modal .box h2 { font-size: var(--text-lg); }
+.kc-ico { width: 28px; height: 28px; color: var(--color-accent); }
 .toast { position: fixed; bottom: var(--space-lg); left: 50%; transform: translateX(-50%); background: var(--color-ink); color: var(--color-paper); padding: var(--space-xs) var(--space-md); border-radius: var(--radius-pill); z-index: var(--z-toast); }
 
 /* narrower windows: panes stack and the door lies down between them */

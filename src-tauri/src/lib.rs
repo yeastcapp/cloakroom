@@ -11,7 +11,7 @@
 use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use rand::RngCore;
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, sync::Mutex};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::DialogExt;
 use zeroize::Zeroize;
@@ -19,6 +19,10 @@ use zeroize::Zeroize;
 const SERVICE: &str = "Cloakroom";
 const ACCOUNT: &str = "vault-key";
 const NONCE_LEN: usize = 12;
+
+/// The key, once fetched, stays in memory until the app quits or Erase runs. Each Keychain read
+/// can make macOS ask for the login password, so the app reads it at most once per launch.
+static KEY: Mutex<Option<[u8; 32]>> = Mutex::new(None);
 
 fn vault_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
@@ -30,8 +34,18 @@ fn key_entry() -> Result<keyring::Entry, String> {
     keyring::Entry::new(SERVICE, ACCOUNT).map_err(|e| e.to_string())
 }
 
-/// Fetch the encryption key from the OS secure store, optionally creating a fresh one.
+/// Fetch the encryption key from the OS secure store (or memory), optionally creating a fresh one.
 fn get_key(create: bool) -> Result<Option<[u8; 32]>, String> {
+    let mut cached = KEY.lock().map_err(|_| "the key lock failed".to_string())?;
+    if let Some(key) = *cached {
+        return Ok(Some(key));
+    }
+    let key = fetch_key(create)?;
+    *cached = key;
+    Ok(key)
+}
+
+fn fetch_key(create: bool) -> Result<Option<[u8; 32]>, String> {
     let entry = key_entry()?;
     match entry.get_password() {
         Ok(encoded) => {
@@ -117,10 +131,28 @@ fn wipe_state(app: AppHandle) -> Result<(), String> {
         }
         fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
+    if let Ok(mut cached) = KEY.lock() {
+        if let Some(mut key) = cached.take() {
+            key.zeroize();
+        }
+    }
     match key_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.to_string()),
     }
+}
+
+/// Whether saved tickets exist, checked without touching the Keychain.
+#[tauri::command]
+fn has_vault(app: AppHandle) -> Result<bool, String> {
+    Ok(vault_path(&app)?.exists())
+}
+
+/// Identifies this build. An unsigned build gets a new code signature each time, so macOS asks
+/// for Keychain access again after every update; the interface uses this to explain that once per build.
+#[tauri::command]
+fn build_id() -> String {
+    format!("{}-{}", env!("CARGO_PKG_VERSION"), option_env!("GITHUB_RUN_ID").unwrap_or("local"))
 }
 
 /// Show the native "Save as" dialog and write the text where the person chooses.
@@ -150,7 +182,9 @@ pub fn run() {
             load_state,
             save_state,
             wipe_state,
-            save_text_file
+            save_text_file,
+            has_vault,
+            build_id
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cloakroom");

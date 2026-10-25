@@ -264,7 +264,21 @@ $('wipeBtn').onclick=async()=>{if(!await ask('Erase every visit and both watch l
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').hidden)$('modalNo').click();});
 
 /* ---------- start ---------- */
+/* On a Mac with saved tickets, a new build makes macOS ask for Keychain access again.
+   Say why just before it happens, once per build. */
+async function keychainNote(){
+  if(!TAURI||!document.documentElement.classList.contains('mac'))return;
+  let build,hasVault,seen=null;
+  try{[build,hasVault]=await Promise.all([invoke('build_id'),invoke('has_vault')]);}catch(e){return;}
+  try{seen=localStorage.getItem('cloakroom.keychainNote');}catch(e){}
+  if(!hasVault||seen===build)return;
+  $('kcNote').hidden=false;$('kcOk').focus();
+  await new Promise(res=>$('kcOk').onclick=res);
+  $('kcNote').hidden=true;
+  try{localStorage.setItem('cloakroom.keychainNote',build);}catch(e){}
+}
 (async()=>{
+  await keychainNote();
   await initState();
   $('people').value=state.people;$('orgs').value=state.orgs;
   $('retention').value=String(state.retentionDays??3);
