@@ -80,7 +80,7 @@ h2 .meta { font-weight: 400; margin-left: var(--space-2xs); }
 .booth-window { fill: var(--color-costume); stroke: var(--color-field-edge); }
 .booth-rail, .booth-hook { stroke: var(--color-ink-2); stroke-width: 1; }
 .coat.k1 { fill: var(--cloth-1); } .coat.k2 { fill: var(--cloth-5); } .coat.k3 { fill: var(--cloth-3); }
-.booth-mask { fill: var(--c-mask); }
+.booth-mask { fill: var(--color-costume-ink); }
 .booth-door { fill: var(--color-ink-2); transition: fill var(--dur-micro) var(--ease-out); }
 .booth.busy .booth-door { fill: var(--c-gold); }
 .booth-leaf { fill: var(--color-accent); transform-box: fill-box; transform-origin: 0 50%; transition: transform var(--dur-micro) var(--ease-out); }
@@ -88,8 +88,7 @@ h2 .meta { font-weight: 400; margin-left: var(--space-2xs); }
 .booth-knob { fill: var(--c-gold); }
 .booth-step { stroke: var(--color-field-edge); stroke-width: 2; }
 .awa { fill: var(--color-accent); } .awb { fill: var(--color-paper-3); }
-.booth-signboard { fill: var(--color-ink); }
-.booth-signtext { fill: var(--color-paper); font-family: var(--font-body); font-size: 8.5px; font-weight: 650; }
+.booth-hanger path { fill: none; stroke: var(--color-accent); stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; }
 .walker { position: absolute; left: 0; bottom: 0; width: 34px; height: 62px; pointer-events: none; }
 .walker svg { display: block; overflow: visible; }
 .walker .leg { stroke: var(--c-leg); stroke-width: 3.2; stroke-linecap: round; transform-box: fill-box; transform-origin: 50% 0; }
