@@ -1,6 +1,6 @@
 /* Hallmark · shape: app screen · genre: modern-minimal · theme: custom · redesign: full · idea: "text walks in plain, is disguised for the party at Claude, and is picked up plain again" · vibe: "calm tool, violet means disguised"
  * paper: oklch(96.5% 0.006 85) · accent: oklch(46% 0.095 170) · display: system sans · body: system sans
- * nav: sidebar path, Check in, Claude, Pick up, then the back room · signature: the violet costume surface, and the pane order that flips between Check in and Pick up · states: empty, full, error, disabled
+ * nav: sidebar path, Anonymize then Deanonymize, then the back room · signature: the violet costume surface, and the pane order that flips between Anonymize and Deanonymize · states: empty, full, error, disabled
  * axes: light/system-sans/chromatic-green · posture: restrained, with violet as a declared surface · contrast: pass · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 · weakest: V, the log has no earlier builds to differ from; kept to one idea (violet means disguised) instead of adding decoration */
 /* Hallmark · reworded "Your text or table" to "Your text", "What I found" to "Found", "Safe to send to Claude" to "Disguised", "With real details" to "Your text, restored", dropped "All done?", "Auto-erase", "Backup and erase" and every helper paragraph · the user asked for the interface to speak for itself, so the helper text went */
@@ -32,8 +32,6 @@ nav { display: flex; flex-direction: column; }
 .stop:active { transform: translateY(1px); }
 @media (hover: hover) { button.stop:hover:not(.on) { background: var(--color-hover); color: var(--color-ink); } }
 .path .stop + .stop::before { content: ""; position: absolute; left: 21px; top: calc(-1 * var(--space-md)); height: var(--space-md); border-left: 2px dashed var(--color-muted); }
-.waypoint { color: var(--color-muted); cursor: default; }
-.waypoint .node { width: 12px; height: 12px; margin-inline: var(--space-2xs); border: 2px solid var(--color-muted); border-radius: var(--radius-pill); flex: none; }
 .status { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-xs); }
 .pill { display: flex; align-items: center; gap: var(--space-xs); font-size: var(--text-xs); color: var(--color-muted); }
 .pill .mini { width: 14px; height: 14px; flex: none; }
@@ -54,7 +52,8 @@ h2 .meta { font-weight: 400; margin-left: var(--space-2xs); }
 .panehead select { min-height: 32px; max-width: 60%; }
 
 /* the rail: in on one side, out on the other, the door between */
-.rail { display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); align-items: stretch; }
+.rail { display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); align-items: start; }
+.rail > .door { align-self: stretch; }
 .col { display: flex; flex-direction: column; gap: var(--space-lg); min-width: 0; }
 .door { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); padding-top: var(--space-2xl); text-align: center; }
 .door::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; border-left: var(--rule-hair) dashed var(--color-field-edge); }
@@ -75,19 +74,29 @@ h2 .meta { font-weight: 400; margin-left: var(--space-2xs); }
 .zone.street .more { left: var(--space-xs); }
 .zone.party .more { right: var(--space-xs); color: var(--color-costume-ink); }
 .booth { display: flex; align-items: flex-end; justify-content: center; }
-.booth svg { width: 96px; height: 76px; }
-.booth-roof { fill: var(--color-accent); }
+.booth svg { width: 120px; height: 84px; overflow: visible; }
+.booth-ground { fill: var(--color-rule); }
 .booth-wall { fill: var(--color-paper-3); stroke: var(--color-field-edge); }
-.booth-door { fill: var(--color-ink-2); transition: fill var(--dur-short) var(--ease-out); }
-.booth.busy .booth-door { fill: var(--color-costume-ink); }
-.booth-sign path { stroke: var(--color-accent); }
+.booth-window { fill: var(--color-costume); stroke: var(--color-field-edge); }
+.booth-rail, .booth-hook { stroke: var(--color-ink-2); stroke-width: 1; }
+.coat.k1 { fill: var(--cloth-1); } .coat.k2 { fill: var(--cloth-5); } .coat.k3 { fill: var(--cloth-3); }
+.booth-mask { fill: var(--c-mask); }
+.booth-door { fill: var(--color-ink-2); transition: fill var(--dur-micro) var(--ease-out); }
+.booth.busy .booth-door { fill: var(--c-gold); }
+.booth-leaf { fill: var(--color-accent); transform-box: fill-box; transform-origin: 0 50%; transition: transform var(--dur-micro) var(--ease-out); }
+.booth.busy .booth-leaf { transform: scaleX(0.14); }
+.booth-knob { fill: var(--c-gold); }
+.booth-step { stroke: var(--color-field-edge); stroke-width: 2; }
+.awa { fill: var(--color-accent); } .awb { fill: var(--color-paper-3); }
+.booth-signboard { fill: var(--color-ink); }
+.booth-signtext { fill: var(--color-paper); font-family: var(--font-body); font-size: 8.5px; font-weight: 650; }
 .walker { position: absolute; left: 0; bottom: 0; width: 34px; height: 62px; pointer-events: none; }
 .walker svg { display: block; overflow: visible; }
 .walker .leg { stroke: var(--c-leg); stroke-width: 3.2; stroke-linecap: round; transform-box: fill-box; transform-origin: 50% 0; }
 .walker .arms { fill: none; stroke-width: 3; stroke-linecap: round; }
-.walker.walking .leg.l { animation: step 0.36s linear infinite alternate; }
-.walker.walking .leg.r { animation: step 0.36s linear infinite alternate-reverse; }
-.walker.walking svg { animation: bob 0.18s var(--ease-in-out) infinite alternate; }
+.walker.walking .leg.l { animation: step 0.2s linear infinite alternate; }
+.walker.walking .leg.r { animation: step 0.2s linear infinite alternate-reverse; }
+.walker.walking svg { animation: bob 0.1s var(--ease-in-out) infinite alternate; }
 @keyframes step { from { transform: rotate(22deg); } to { transform: rotate(-22deg); } }
 @keyframes bob { to { transform: translateY(-2px); } }
 .walker.puzzled::after { content: "?"; position: absolute; top: -6px; right: 0; font-weight: 700; color: var(--color-warn); }
@@ -105,7 +114,6 @@ h2 .meta { font-weight: 400; margin-left: var(--space-2xs); }
 
 /* fields */
 textarea { width: 100%; min-height: 160px; border: var(--rule-hair) solid var(--color-field-edge); border-radius: var(--radius-field); padding: var(--space-sm); background: var(--color-paper); color: var(--color-ink); font: 0.8125rem/1.5 var(--font-mono); resize: vertical; tab-size: 14; outline: 2px solid transparent; outline-offset: -3px; }
-.pane.costume > textarea { flex: 1; }
 textarea.tall { min-height: 360px; }
 textarea::placeholder, input::placeholder { color: var(--color-muted); }
 textarea:focus-visible, input:focus-visible, select:focus-visible { outline-color: var(--color-focus); }
@@ -142,7 +150,7 @@ input[type=checkbox] { accent-color: var(--color-accent); width: 16px; height: 1
 .note { background: var(--color-warn-soft); color: var(--color-warn); }
 .ok { background: var(--color-accent-soft); color: var(--color-accent-text); }
 
-/* Pick up: the end of the evening */
+/* Deanonymize: the end of the evening */
 .leave { display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg); margin-top: var(--space-lg); padding-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); }
 
 /* tickets room */
@@ -175,7 +183,6 @@ table.vault .x { min-width: 28px; min-height: 28px; border: 0; background: none;
   .rail { grid-template-columns: minmax(0, 1fr); gap: var(--space-md); }
   .door { flex-direction: row; justify-content: flex-start; padding-top: 0; }
   .door::before { top: 50%; bottom: auto; left: 0; right: 0; border-left: 0; border-top: var(--rule-hair) dashed var(--color-field-edge); }
-  .pane.costume > textarea { min-height: 160px; }
 }
 /* the sidebar becomes a bar along the top */
 @media (max-width: 60rem) {

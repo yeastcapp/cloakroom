@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 const h=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let scan=null,userChecks=new Map(),manual=[],columns=null,lastInput='',rFile=null,timer;
-// the visit the Check in screen is filling, what it last disguised, and where the input came from
+// the visit the Anonymize screen is filling, what it last disguised, and where the input came from
 let openVisit=null,lastDisguised='',lastMasked='',source={kind:'text',name:''},pickedVisit=null;
 
 if(TAURI&&/Mac/.test(navigator.userAgent))document.documentElement.classList.add('mac');
@@ -85,10 +85,16 @@ function rescan(join){
 function renderColumns(){
   if(!scan||!scan.table){$('columns').innerHTML='';return;}
   $('columns').innerHTML='<div class="find"><div class="grp">Columns</div>'+scan.columns.map(c=>
-    `<label><input type="checkbox" data-col="${c.i}" ${c.on?'checked':''} ${c.type?'':'disabled'}>
+    `<label><input type="checkbox" data-col="${c.i}" ${c.on?'checked':''}>
      <span><b>${h(c.header)}</b> <span class="meta">${c.type?TYPE_LABEL[c.type]:'checked cell by cell'}</span></span>
      <span class="m">${c.distinct} values</span></label>`).join('')+'</div>';
-  $('columns').querySelectorAll('input').forEach(i=>i.onchange=()=>{columns[+i.dataset.col].on=i.checked;rescan(true);});
+  // any column can be ticked; one the app could not name gets "Other" tickets
+  $('columns').querySelectorAll('input').forEach(i=>i.onchange=()=>{
+    const c=columns[+i.dataset.col];c.on=i.checked;
+    if(i.checked&&!c.type){c.type='OTHER';c.picked=true;}
+    if(!i.checked&&c.picked){c.type=null;c.picked=false;}
+    rescan(true);
+  });
 }
 function isChecked(f){return userChecks.has(f.key)?userChecks.get(f.key):f.checked;}
 function renderFindings(){

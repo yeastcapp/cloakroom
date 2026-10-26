@@ -30,9 +30,8 @@
     </div>
     <nav aria-label="Rooms">
       <div class="path">
-        <button type="button" class="stop on" data-tab="mask" aria-current="page"><svg class="ico" aria-hidden="true"><use href="#i-mask-on"/></svg><span>Check in</span></button>
-        <div class="stop waypoint"><span class="node" aria-hidden="true"></span><span>Claude</span></div>
-        <button type="button" class="stop" data-tab="restore"><svg class="ico" aria-hidden="true"><use href="#i-mask-off"/></svg><span>Pick up</span></button>
+        <button type="button" class="stop on" data-tab="mask" aria-current="page"><svg class="ico" aria-hidden="true"><use href="#i-mask-on"/></svg><span>Anonymize</span></button>
+        <button type="button" class="stop" data-tab="restore"><svg class="ico" aria-hidden="true"><use href="#i-mask-off"/></svg><span>Deanonymize</span></button>
       </div>
       <div class="backroom">
         <button type="button" class="stop" data-tab="lists"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg><span>Watch lists</span></button>
@@ -49,9 +48,9 @@
   <main>
     <div class="topdrag" data-tauri-drag-region></div>
 
-    <!-- CHECK IN: real text goes in on the left, the disguised text comes out on the right -->
+    <!-- ANONYMIZE: real text goes in on the left, the disguised text comes out on the right -->
     <section id="mask" class="room on">
-      <header><h1>Check in</h1></header>
+      <header><h1>Anonymize</h1></header>
       <div class="stage" id="maskStage" aria-hidden="true"></div>
       <div class="rail">
         <div class="col">
@@ -87,9 +86,9 @@
       </div>
     </section>
 
-    <!-- PICK UP: Claude's disguised reply goes in on the left, the real text comes out on the right -->
+    <!-- DEANONYMIZE: Claude's disguised reply goes in on the left, the real text comes out on the right -->
     <section id="restore" class="room">
-      <header><h1>Pick up</h1></header>
+      <header><h1>Deanonymize</h1></header>
       <div class="stage" id="restoreStage" aria-hidden="true"></div>
       <div class="rail">
         <div class="pane costume">

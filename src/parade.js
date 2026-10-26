@@ -5,7 +5,7 @@
 const Parade=(()=>{
   const SVG='http://www.w3.org/2000/svg';
   const MAX=12;                      // people drawn per side; the rest show as "+N"
-  const SPEED=260;                   // px per second when walking
+  const SPEED=560;                   // px per second when walking
   const still=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
   const wait=ms=>new Promise(r=>setTimeout(r,still()?0:ms));
   let seed=0;
@@ -55,7 +55,7 @@ const Parade=(()=>{
     root.innerHTML='';
     const zl=document.createElement('div');zl.className='zone '+(left==='costume'?'party':'street');
     const booth=document.createElement('div');booth.className='booth';
-    booth.innerHTML='<svg viewBox="0 0 96 76" aria-hidden="true"><path class="booth-roof" d="M6 22 48 4l42 18Z"/><rect class="booth-wall" x="12" y="22" width="72" height="52" rx="3"/><path class="booth-door" d="M34 74V46a14 14 0 0 1 28 0v28Z"/><g class="booth-sign"><path d="M48 27a2.2 2.2 0 1 1 2.2 2.2c-1.1 0-2.2.7-2.2 1.8v1" fill="none" stroke-width="1.6" stroke-linecap="round"/><path d="M48 32 39 38h18Z" fill="none" stroke-width="1.6" stroke-linejoin="round"/></g></svg>';
+    booth.innerHTML='<svg viewBox="0 0 120 84" aria-hidden="true"><ellipse class="booth-ground" cx="60" cy="82.5" rx="56" ry="2"/><rect class="booth-wall" x="12" y="30" width="96" height="52" rx="2"/><rect class="booth-window" x="18" y="40" width="22" height="20" rx="2"/><path class="booth-rail" d="M19 43.5h20"/><path class="coat k1" d="M22 44h4l1 3v9h-6v-9Z"/><path class="coat k2" d="M28 44h4l1 3v10h-6v-10Z"/><path class="coat k3" d="M34 44h4l1 3v8h-6v-8Z"/><rect class="booth-window" x="80" y="40" width="22" height="20" rx="2"/><path class="booth-hook" d="M91 41v3"/><path class="booth-mask" d="M84.5 47c2-1.3 4.3-1.4 6.5-.4 2.2-1 4.5-.9 6.5.4 0 2.6-1.4 3.8-3 3.8-1.3 0-2.1-.8-3.5-.8s-2.2.8-3.5.8c-1.6 0-3-1.2-3-3.8Z"/><path class="booth-door" d="M47 82V57a13 13 0 0 1 26 0v25Z"/><g class="booth-leaf"><path d="M47 82V57a13 13 0 0 1 26 0v25Z"/><circle class="booth-knob" cx="69" cy="70" r="1.3"/></g><path class="booth-step" d="M43 82h34"/><path class="awa" d="M6 22h9l-1 8h-8Z"/><path class="awb" d="M15 22h9l-1 8h-8Z"/><path class="awa" d="M24 22h9l-1 8h-8Z"/><path class="awb" d="M33 22h9l-1 8h-8Z"/><path class="awa" d="M42 22h9l-1 8h-8Z"/><path class="awb" d="M51 22h9l-1 8h-8Z"/><path class="awa" d="M60 22h9l-1 8h-8Z"/><path class="awb" d="M69 22h9l-1 8h-8Z"/><path class="awa" d="M78 22h9l-1 8h-8Z"/><path class="awb" d="M87 22h9l-1 8h-8Z"/><path class="awa" d="M96 22h9l-1 8h-8Z"/><path class="awb" d="M105 22h9l-1 8h-8Z"/><path class="awa" d="M12 30a4 4 0 0 0 8 0Z"/><path class="awb" d="M20 30a4 4 0 0 0 8 0Z"/><path class="awa" d="M28 30a4 4 0 0 0 8 0Z"/><path class="awb" d="M36 30a4 4 0 0 0 8 0Z"/><path class="awa" d="M44 30a4 4 0 0 0 8 0Z"/><path class="awb" d="M52 30a4 4 0 0 0 8 0Z"/><path class="awa" d="M60 30a4 4 0 0 0 8 0Z"/><path class="awb" d="M68 30a4 4 0 0 0 8 0Z"/><path class="awa" d="M76 30a4 4 0 0 0 8 0Z"/><path class="awb" d="M84 30a4 4 0 0 0 8 0Z"/><path class="awa" d="M92 30a4 4 0 0 0 8 0Z"/><path class="awb" d="M100 30a4 4 0 0 0 8 0Z"/><rect class="booth-signboard" x="33" y="5" width="54" height="14" rx="3"/><text class="booth-signtext" x="60" y="15" text-anchor="middle">Cloakroom</text></svg>';
     const zr=document.createElement('div');zr.className='zone '+(right==='costume'?'party':'street');
     const more=[document.createElement('span'),document.createElement('span')];more.forEach(m=>m.className='more');
     zl.appendChild(more[0]);zr.appendChild(more[1]);
@@ -65,11 +65,11 @@ const Parade=(()=>{
     const zoneBox=z=>({x:z.offsetLeft,w:z.offsetWidth});
     const slot=(z,i,side)=>{const b=zoneBox(z),gap=Math.min(30,Math.max(18,(b.w-48)/MAX));
       return side==='l'?b.x+b.w-40-i*gap:b.x+12+i*gap;};        // the left queue starts at the booth; the right one leaves it
-    const door=()=>booth.offsetLeft+booth.offsetWidth/2-17;
+    const door=()=>booth.offsetLeft+booth.offsetWidth/2-17;   // the doorway, centred in the booth
     const place=(p,x)=>{p.x=x;p.el.style.transform=`translateX(${x}px)`;};
     function walk(p,to,{fade}={}){
       const from=p.x;if(still()||from===to){place(p,to);if(fade)p.el.style.opacity=0;return Promise.resolve();}
-      const ms=Math.max(260,Math.abs(to-from)/SPEED*1000);
+      const ms=Math.max(140,Math.abs(to-from)/SPEED*1000);
       p.el.classList.add('walking');p.el.classList.toggle('back',to<from);
       const a=p.el.animate([{transform:`translateX(${from}px)`},{transform:`translateX(${to}px)`}],{duration:ms,easing:'linear',fill:'forwards'});
       return a.finished.then(()=>{place(p,to);a.cancel();p.el.classList.remove('walking','back');});
@@ -80,13 +80,13 @@ const Parade=(()=>{
     function add(list,z,costumed,i,how){
       const s=seed++;const p={s,el:person(s,costumed)};root.appendChild(p.el);list.push(p);
       const x=slot(z,i,list===L?'l':'r');
-      if(how==='rise'&&!still()){place(p,x);p.el.animate([{transform:`translate(${x}px,64px)`},{transform:`translate(${x}px,-6px)`,offset:.7},{transform:`translate(${x}px,0)`}],{duration:520,easing:'cubic-bezier(0.16,1,0.3,1)',delay:i*45,fill:'backwards'});}
+      if(how==='rise'&&!still()){place(p,x);p.el.animate([{transform:`translate(${x}px,64px)`},{transform:`translate(${x}px,-6px)`,offset:.7},{transform:`translate(${x}px,0)`}],{duration:380,easing:'cubic-bezier(0.16,1,0.3,1)',delay:i*30,fill:'backwards'});}
       else if(how==='run'){place(p,zoneBox(z).x-36);walk(p,x);}
       else place(p,x);
       return p;
     }
     function drop(p){p.el.classList.add('going');if(still()){p.el.remove();return;}
-      p.el.animate([{opacity:1,transform:`translate(${p.x}px,0)`},{opacity:0,transform:`translate(${p.x}px,40px)`}],{duration:260,easing:'cubic-bezier(0.7,0,0.84,0)',fill:'forwards'}).finished.then(()=>p.el.remove());}
+      p.el.animate([{opacity:1,transform:`translate(${p.x}px,0)`},{opacity:0,transform:`translate(${p.x}px,40px)`}],{duration:180,easing:'cubic-bezier(0.7,0,0.84,0)',fill:'forwards'}).finished.then(()=>p.el.remove());}
 
     return {
       /* Set how many wait on the left. New ones rise out of the text, or run in when "join" is set. */
@@ -102,21 +102,22 @@ const Parade=(()=>{
         busy=busy.then(async()=>{
           [...R].forEach(p=>drop(p));R.length=0;rTotal=0;label();
           const goers=L.slice(0,Math.max(0,L.length-stay)),stayers=L.slice(goers.length);
+          if(goers.length)booth.classList.add('busy');      // the door swings open for the whole procession
           const moving=goers.map((p,k)=>(async()=>{
-            await wait(k*150);
+            await wait(k*70);
             await walk(p,door(),{fade:false});
-            booth.classList.add('busy');
-            if(!still())await p.el.animate([{opacity:1},{opacity:0}],{duration:160,fill:'forwards'}).finished;
+            if(!still())await p.el.animate([{opacity:1,transform:`translateX(${p.x}px)`},{opacity:0,transform:`translateX(${p.x}px) scale(.85)`}],{duration:90,fill:'forwards'}).finished;
             p.el.remove();
-            await wait(320);booth.classList.remove('busy');
+            await wait(140);
             const q={s:p.s,el:person(p.s,right==='costume')};root.appendChild(q.el);R.push(q);place(q,door());
-            if(!still())q.el.animate([{opacity:0},{opacity:1}],{duration:160});
+            if(!still())q.el.animate([{opacity:0},{opacity:1}],{duration:90});
             await walk(q,slot(zr,R.indexOf(q),'r'));
           })());
           L.length=0;L.push(...stayers);
           stayers.forEach((p,i)=>{p.el.classList.add('puzzled');walk(p,slot(zl,i,'l'));});
           rTotal=Math.max(goers.length,lTotal-stay);lTotal=stayers.length;label();
           await Promise.all(moving);
+          booth.classList.remove('busy');
         });
         return busy;
       },
@@ -124,7 +125,7 @@ const Parade=(()=>{
       leave(){
         busy=busy.then(async()=>{
           const edge=root.offsetWidth+10;
-          await Promise.all(R.map((p,i)=>wait(i*60).then(()=>walk(p,edge)).then(()=>p.el.remove())));
+          await Promise.all(R.map((p,i)=>wait(i*40).then(()=>walk(p,edge)).then(()=>p.el.remove())));
           R.length=0;rTotal=0;label();
         });
         return busy;
