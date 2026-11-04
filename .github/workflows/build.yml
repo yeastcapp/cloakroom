@@ -1,6 +1,7 @@
 # Builds the Mac and Windows installers and attaches them to a draft GitHub Release.
 # Runs on every push to main, or from the repo's Actions tab ("Build Cloakroom" → "Run workflow").
-# The version number in src-tauri/tauri.conf.json decides which draft release the installers land in.
+# The version is stamped at build time as major.minor (from src-tauri/tauri.conf.json) plus the commit count, so every push gets its own draft release.
+# To start a new line, e.g. 0.2.x, change the major.minor in tauri.conf.json by hand.
 name: Build Cloakroom
 
 on:
@@ -41,6 +42,20 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history, so the commit count below is real
+      - name: Stamp the version (major.minor from tauri.conf.json, patch = commits on this branch)
+        shell: bash
+        run: |
+          node -e '
+            const fs=require("fs"),{execSync}=require("child_process");
+            const f="src-tauri/tauri.conf.json",c=JSON.parse(fs.readFileSync(f,"utf8"));
+            const [maj,min]=c.version.split(".");
+            const n=execSync("git rev-list --count HEAD").toString().trim();
+            c.version=`${maj}.${min}.${n}`;
+            fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n");
+            console.log("Building version "+c.version);
+          '
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
