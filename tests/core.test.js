@@ -6,8 +6,8 @@ global.window = {};
 global.localStorage = { getItem() { return null; }, setItem() {} };
 const code = fs.readFileSync(path.join(__dirname, '../src/names.js'), 'utf8') + '\n'
   + fs.readFileSync(path.join(__dirname, '../src/core.js'), 'utf8')
-  + '\nreturn {collect, mask, restore, upgradeState, reset: () => { state = blankState(); }};';
-const { collect, mask, restore, upgradeState, reset } = new Function(code)();
+  + '\nreturn {collect, mask, maskAsync, restore, upgradeState, reset: () => { state = blankState(); }};';
+const { collect, mask, maskAsync, restore, upgradeState, reset } = new Function(code)();
 
 let failed = 0;
 const check = (name, ok, detail) => { if (!ok) failed++; console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : '\n     ' + detail)); };
@@ -63,5 +63,17 @@ check('a ticket the visit lacks is left as is', restore('[PERSON_7] here', v1).u
 const up = upgradeState({ tokens: { PERSON_1: { value: 'Jane', type: 'PERSON', ts: 1 } }, index: { jane: 'PERSON_1' }, counters: { PERSON: 1 } });
 check('an older save becomes one visit', up.visits.v0 && up.visits.v0.tokens.PERSON_1.value === 'Jane' && !up.tokens, JSON.stringify(up));
 
-console.log(failed ? `\n${failed} failed` : '\nall passed');
-process.exit(failed ? 1 : 0);
+// the chunked mask gives exactly what the one-shot mask gives, and reports progress up to 1
+(async () => {
+  const rows = ['Name\tEmail\tNotes'];
+  for (let i = 0; i < 40; i++) rows.push(`Person${i} Smith${i}\tp${i}@ex.com\tCalled Person${i} Smith${i} about a gift`);
+  const t = rows.join('\n');
+  reset(); const a = collect(t, {}); const ka = new Set(a.findings.filter(f => f.checked).map(f => f.key));
+  const once = mask(t, a, ka).out;
+  reset(); const b = collect(t, {}); const kb = new Set(b.findings.filter(f => f.checked).map(f => f.key));
+  const seen = []; const chunked = (await maskAsync(t, b, kb, null, f => seen.push(f), 7)).out;
+  check('chunked mask matches the one-shot mask', once === chunked, once.slice(0, 120) + ' | ' + chunked.slice(0, 120));
+  check('chunked mask reports rising progress that ends at 1', seen.length > 2 && seen[seen.length - 1] === 1 && seen.every((x, i) => !i || x >= seen[i - 1]), JSON.stringify(seen));
+  console.log(failed ? `\n${failed} failed` : '\nall passed');
+  process.exit(failed ? 1 : 0);
+})();

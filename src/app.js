@@ -64,7 +64,7 @@ function crowd(){
 }
 function closeVisit(){
   openVisit=null;lastDisguised='';lastMasked='';
-  $('output').value='';$('visitInfo').textContent='';$('maskInfo').textContent='';$('maskWarn').innerHTML='';
+  $('output').value='';$('visitInfo').textContent='';$('maskInfo').textContent='';$('maskWarn').innerHTML='';$('maskPreview').innerHTML='';
   csvButtons(false);stageIn.clearRight();
 }
 function rescan(join){
@@ -93,7 +93,8 @@ function renderColumns(){
     const c=columns[+i.dataset.col];c.on=i.checked;
     if(i.checked&&!c.type){c.type='OTHER';c.picked=true;}
     if(!i.checked&&c.picked){c.type=null;c.picked=false;}
-    rescan(true);
+    // only the crowd is recounted here; the sheet itself is read and converted when Disguise is pressed
+    stageIn.setLeft(crowd(),{join:true});
   });
 }
 function isChecked(f){return userChecks.has(f.key)?userChecks.get(f.key):f.checked;}
@@ -122,24 +123,44 @@ dropTarget($('input'),loadInput);
 
 function csvButtons(on){$('copyCsv').hidden=$('saveCsv').hidden=!on;}
 const NOTE='(Note: placeholders in square brackets, like [PERSON_#] or [EMAIL_#], stand in for private details. Keep them exactly as written, brackets included, and don\'t guess what they stand for.)\n\n';
-$('maskBtn').onclick=()=>{
+const nextPaint=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
+let masking=false;
+function setBusy(on){masking=on;$('maskBtn').disabled=on;$('columns').inert=$('findings').inert=on;}
+// the first data row that changed, before and after, so you can see what the sheet will look like
+function peek(table,outText){
+  const after=outText.split('\n').map(l=>l.split('\t'));
+  let ri=1;
+  for(let r=1;r<table.length;r++){if(table[r].some((c,ci)=>c!==(after[r]||[])[ci])){ri=r;break;}}
+  const rows=table[0].map((head,ci)=>({head:head.trim()||'Column '+(ci+1),was:table[ri][ci]||'',now:(after[ri]||[])[ci]||''})).filter(x=>x.was!==x.now);
+  if(!rows.length)return '';
+  return `<div class="peek"><div class="grp">Row ${ri}, before and after</div><table><thead><tr><th>Column</th><th>Now</th><th>After</th></tr></thead><tbody>`
+    +rows.map(x=>`<tr><th scope="row">${h(x.head)}</th><td>${h(x.was)}</td><td class="after">${h(x.now)}</td></tr>`).join('')+'</tbody></table></div>';
+}
+$('maskBtn').onclick=async()=>{
+  if(masking)return;
   if(purgeExpired()&&openVisit&&!state.visits[openVisit])openVisit=null;
-  rescan();if(!scan)return;
-  if(!openVisit||!state.visits[openVisit])openVisit=newVisit(scan.table?(source.kind==='csv'?'csv':'table'):'text',source.name).id;
-  const v=state.visits[openVisit],text=$('input').value;
-  stageIn.setLeft(crowd());
-  const keys=new Set(scan.findings.filter(isChecked).map(f=>f.key));
-  const r=mask(text,scan,keys,v);
-  lastDisguised=text;lastMasked=r.out;
-  $('output').value=($('addNote').checked?NOTE:'')+r.out;
-  const total=Object.values(r.stats).reduce((a,b)=>a+b,0);
-  $('visitInfo').textContent=`visit ${v.n}`;
-  $('maskInfo').textContent=total?`${total} ticket${total===1?'':'s'}`:'Nothing replaced';
-  $('maskWarn').innerHTML=(r.skipped?`<div class="note">${r.skipped} unticked item${r.skipped>1?'s':''} still in your text.</div>`:'')
-   +'<div class="note">Read it before sending. Context can still identify someone, and names Cloakroom has never seen can slip through.</div>';
-  csvButtons(!!scan.table);
-  stageIn.go();
-  refreshStatus();refreshVisits();
+  setBusy(true);$('maskInfo').textContent='Reading…';await nextPaint();
+  try{
+    rescan();if(!scan)return;
+    if(!openVisit||!state.visits[openVisit])openVisit=newVisit(scan.table?(source.kind==='csv'?'csv':'table'):'text',source.name).id;
+    const v=state.visits[openVisit],text=$('input').value;
+    stageIn.setLeft(crowd());
+    const keys=new Set(scan.findings.filter(isChecked).map(f=>f.key));
+    stageIn.begin();
+    $('maskPreview').innerHTML='';
+    const r=await maskAsync(text,scan,keys,v,f=>{stageIn.advance(f);$('maskInfo').textContent=`Disguising ${Math.round(f*100)}%`;});
+    lastDisguised=text;lastMasked=r.out;
+    $('output').value=($('addNote').checked?NOTE:'')+r.out;
+    const total=Object.values(r.stats).reduce((a,b)=>a+b,0);
+    $('visitInfo').textContent=`visit ${v.n}`;
+    $('maskInfo').textContent=total?`${total} ticket${total===1?'':'s'}`:'Nothing replaced';
+    $('maskWarn').innerHTML=(r.skipped?`<div class="note">${r.skipped} unticked item${r.skipped>1?'s':''} still in your text.</div>`:'')
+     +'<div class="note">Read it before sending. Context can still identify someone, and names Cloakroom has never seen can slip through.</div>';
+    $('maskPreview').innerHTML=scan.table?peek(scan.table,r.out):'';
+    csvButtons(!!scan.table);
+    await stageIn.finish();
+    refreshStatus();refreshVisits();
+  }finally{setBusy(false);}
 };
 $('copyOut').onclick=()=>copy('output');
 $('copyCsv').onclick=()=>copyText(tsvToCsv(lastMasked));

@@ -88,6 +88,18 @@ const Parade=(()=>{
     function drop(p){p.el.classList.add('going');if(still()){p.el.remove();return;}
       p.el.animate([{opacity:1,transform:`translate(${p.x}px,0)`},{opacity:0,transform:`translate(${p.x}px,40px)`}],{duration:180,easing:'cubic-bezier(0.7,0,0.84,0)',fill:'forwards'}).finished.then(()=>p.el.remove());}
 
+    /* One person walks into the booth and comes out the other side. */
+    async function send(p){
+      await walk(p,door(),{fade:false});
+      if(!still())await p.el.animate([{opacity:1,transform:`translateX(${p.x}px)`},{opacity:0,transform:`translateX(${p.x}px) scale(.85)`}],{duration:90,fill:'forwards'}).finished;
+      p.el.remove();
+      await wait(140);
+      const q={s:p.s,el:person(p.s,right==='costume')};root.appendChild(q.el);R.push(q);place(q,door());
+      if(!still())q.el.animate([{opacity:0},{opacity:1}],{duration:90});
+      await walk(q,slot(zr,R.indexOf(q),'r'));
+    }
+    let run=null;   // a progress-driven crossing: begin(), advance(0..1) as work gets done, then finish()
+
     return {
       /* Set how many wait on the left. New ones rise out of the text, or run in when "join" is set. */
       setLeft(n,{join}={}){
@@ -103,22 +115,33 @@ const Parade=(()=>{
           [...R].forEach(p=>drop(p));R.length=0;rTotal=0;label();
           const goers=L.slice(0,Math.max(0,L.length-stay)),stayers=L.slice(goers.length);
           if(goers.length)booth.classList.add('busy');      // the door swings open for the whole procession
-          const moving=goers.map((p,k)=>(async()=>{
-            await wait(k*70);
-            await walk(p,door(),{fade:false});
-            if(!still())await p.el.animate([{opacity:1,transform:`translateX(${p.x}px)`},{opacity:0,transform:`translateX(${p.x}px) scale(.85)`}],{duration:90,fill:'forwards'}).finished;
-            p.el.remove();
-            await wait(140);
-            const q={s:p.s,el:person(p.s,right==='costume')};root.appendChild(q.el);R.push(q);place(q,door());
-            if(!still())q.el.animate([{opacity:0},{opacity:1}],{duration:90});
-            await walk(q,slot(zr,R.indexOf(q),'r'));
-          })());
+          const moving=goers.map((p,k)=>wait(k*70).then(()=>send(p)));
           L.length=0;L.push(...stayers);
           stayers.forEach((p,i)=>{p.el.classList.add('puzzled');walk(p,slot(zl,i,'l'));});
           rTotal=Math.max(goers.length,lTotal-stay);lTotal=stayers.length;label();
           await Promise.all(moving);
           booth.classList.remove('busy');
         });
+        return busy;
+      },
+      /* Progress-driven version of go(): the crowd crosses in step with the work being done. */
+      begin(){
+        [...R].forEach(p=>drop(p));R.length=0;rTotal=0;
+        const goers=L.splice(0),total=lTotal;
+        run={goers,total,sent:0,moving:[]};
+        if(goers.length)booth.classList.add('busy');
+        lTotal=total;label();
+      },
+      advance(f){
+        if(!run)return;
+        const want=Math.round(Math.min(1,Math.max(0,f))*run.goers.length);
+        while(run.sent<want)run.moving.push(send(run.goers[run.sent++]));
+        rTotal=Math.round(f*run.total);lTotal=run.total-rTotal;label();
+      },
+      finish(){
+        const r=run;run=null;
+        if(r){while(r.sent<r.goers.length)r.moving.push(send(r.goers[r.sent++]));rTotal=r.total;lTotal=0;label();}
+        busy=busy.then(async()=>{if(r){await Promise.all(r.moving);booth.classList.remove('busy');}});
         return busy;
       },
       /* The evening ends: everyone on the right walks off the edge. */

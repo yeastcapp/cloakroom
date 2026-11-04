@@ -283,21 +283,41 @@ function makeReplacer(v,items,stats){
   const sub=m=>{const t=map.get(norm(m));if(!t)return m;stats[v.tokens[t].type]=(stats[v.tokens[t].type]||0)+1;return '['+t+']';};
   return s=>{if(ci)s=s.replace(ci,sub);if(cs)s=s.replace(cs,sub);return s;};
 }
-function mask(text,scan,checkedKeys,v){
+function maskSetup(text,scan,checkedKeys,v){
   v=v||newVisit(scan.table?'table':'text');
   const stats={};
   const items=scan.findings.filter(f=>checkedKeys.has(f.key));
   const rep=makeReplacer(v,items,stats);
+  const row=r=>r.map((c,ci)=>{
+    const col=scan.columns[ci];
+    if(col&&col.on&&c.trim()){const t=tokenFor(v,c,col.type);stats[col.type]=(stats[col.type]||0)+1;return '['+t+']';}
+    return rep(c);
+  }).join('\t');
+  return {v,stats,rep,row,skipped:scan.findings.filter(f=>!checkedKeys.has(f.key)&&!f.maybe).length};
+}
+function mask(text,scan,checkedKeys,v){
+  const m=maskSetup(text,scan,checkedKeys,v);
+  const out=scan.table?scan.table.map((r,ri)=>ri>0?m.row(r):r.map(m.rep).join('\t')).join('\n'):m.rep(text);
+  saveState();
+  return {out,stats:m.stats,visit:m.v,skipped:m.skipped};
+}
+/* Same result as mask(), but a slice of rows at a time so the window stays responsive.
+   onProgress gets a number from 0 to 1 after each slice. */
+async function maskAsync(text,scan,checkedKeys,v,onProgress,slice){
+  const m=maskSetup(text,scan,checkedKeys,v);
+  const tick=()=>new Promise(r=>setTimeout(r,0));
   let out;
   if(scan.table){
-    out=scan.table.map((r,ri)=>r.map((c,ci)=>{
-      const col=scan.columns[ci];
-      if(ri>0&&col&&col.on&&c.trim()){const t=tokenFor(v,c,col.type);stats[col.type]=(stats[col.type]||0)+1;return '['+t+']';}
-      return rep(c);
-    }).join('\t')).join('\n');
-  } else out=rep(text);
+    const rows=scan.table,n=rows.length,per=slice||250,done=[];
+    for(let i=0;i<n;i+=per){
+      for(let j=i;j<Math.min(n,i+per);j++)done.push(j>0?m.row(rows[j]):rows[j].map(m.rep).join('\t'));
+      if(onProgress)onProgress(Math.min(1,(i+per)/n));
+      if(i+per<n)await tick();
+    }
+    out=done.join('\n');
+  } else {out=m.rep(text);if(onProgress)onProgress(1);}
   saveState();
-  return {out,stats,visit:v,skipped:scan.findings.filter(f=>!checkedKeys.has(f.key)&&!f.maybe).length};
+  return {out,stats:m.stats,visit:m.v,skipped:m.skipped};
 }
 
 /* ---------- restoring ---------- */
